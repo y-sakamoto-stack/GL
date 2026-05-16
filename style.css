@@ -30,121 +30,106 @@ h1 {
   color: #a8dadc;
 }
 
-.clock {
-  font-size: 3.2rem;
+.display {
+  font-size: 4rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: #e2e2e2;
-  margin-bottom: 36px;
+  margin-bottom: 32px;
   font-variant-numeric: tabular-nums;
+  transition: color 0.3s;
 }
 
-.alarm-set {
+.display.finished {
+  color: #e63946;
+}
+
+.inputs {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 28px;
 }
 
-.alarm-set label {
-  font-size: 0.85rem;
-  color: #a8dadc;
-  text-align: left;
+.input-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.alarm-set input[type="time"] {
+.input-group input[type="number"] {
+  width: 72px;
   background: #0f3460;
   border: 1px solid #457b9d;
   border-radius: 10px;
   color: #eaeaea;
   font-size: 1.6rem;
-  padding: 10px 16px;
+  padding: 8px 10px;
   text-align: center;
-  width: 100%;
   outline: none;
-  cursor: pointer;
 }
 
-.alarm-set input[type="time"]:focus {
+.input-group input[type="number"]:focus {
   border-color: #a8dadc;
 }
 
-#set-btn {
-  background: #457b9d;
+.unit {
+  font-size: 0.9rem;
+  color: #a8dadc;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+button {
   border: none;
   border-radius: 10px;
   color: #fff;
   cursor: pointer;
-  font-size: 1rem;
-  padding: 12px;
-  transition: background 0.2s;
+  font-size: 0.95rem;
+  padding: 12px 22px;
+  transition: background 0.2s, transform 0.1s;
 }
 
-#set-btn:hover {
+button:active {
+  transform: scale(0.96);
+}
+
+#start-btn {
+  background: #457b9d;
+}
+
+#start-btn:hover {
   background: #1d6a96;
 }
 
-.alarm-status {
+#pause-btn {
+  background: #e9c46a;
+  color: #1a1a2e;
+}
+
+#pause-btn:hover {
+  background: #f4a261;
+}
+
+#reset-btn {
+  background: #4a4e69;
+}
+
+#reset-btn:hover {
+  background: #3a3d52;
+}
+
+.status {
   font-size: 0.9rem;
   color: #a8dadc;
-  margin-bottom: 16px;
-  min-height: 24px;
-}
-
-.cancel-btn {
-  background: #e63946;
-  border: none;
-  border-radius: 10px;
-  color: #fff;
-  cursor: pointer;
-  font-size: 0.9rem;
-  padding: 10px 24px;
-  transition: background 0.2s;
-}
-
-.cancel-btn:hover {
-  background: #c1121f;
+  min-height: 22px;
 }
 
 .hidden {
   display: none !important;
-}
-
-/* Modal */
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-box {
-  background: #16213e;
-  border: 2px solid #a8dadc;
-  border-radius: 16px;
-  padding: 40px;
-  text-align: center;
-}
-
-.modal-box p {
-  font-size: 1.2rem;
-  margin-bottom: 24px;
-  color: #eaeaea;
-}
-
-#stop-btn {
-  background: #e63946;
-  border: none;
-  border-radius: 10px;
-  color: #fff;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 12px 32px;
-  transition: background 0.2s;
-}
-
-#stop-btn:hover {
-  background: #c1121f;
 }

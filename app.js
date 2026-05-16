@@ -1,101 +1,116 @@
-const clockEl = document.getElementById('clock');
-const alarmTimeEl = document.getElementById('alarm-time');
-const setBtn = document.getElementById('set-btn');
-const cancelBtn = document.getElementById('cancel-btn');
-const statusEl = document.getElementById('alarm-status');
-const modal = document.getElementById('modal');
-const stopBtn = document.getElementById('stop-btn');
+const displayEl = document.getElementById('display');
+const minutesEl = document.getElementById('minutes');
+const secondsEl = document.getElementById('seconds');
+const inputsEl = document.getElementById('inputs');
+const startBtn = document.getElementById('start-btn');
+const pauseBtn = document.getElementById('pause-btn');
+const resetBtn = document.getElementById('reset-btn');
+const statusEl = document.getElementById('status');
 
-let alarmTime = null;
-let alarmFired = false;
-
-// Web Audio API でビープ音を生成（外部ファイル不要）
-let audioCtx = null;
-let beepInterval = null;
-
-function startBeep() {
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-  beepInterval = setInterval(() => {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.type = 'sine';
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.4);
-  }, 600);
-}
-
-function stopBeep() {
-  if (beepInterval) {
-    clearInterval(beepInterval);
-    beepInterval = null;
-  }
-  if (audioCtx) {
-    audioCtx.close();
-    audioCtx = null;
-  }
-}
+let remaining = 0;
+let intervalId = null;
+let running = false;
 
 function pad(n) {
   return String(n).padStart(2, '0');
 }
 
-function tick() {
-  const now = new Date();
-  const hh = pad(now.getHours());
-  const mm = pad(now.getMinutes());
-  const ss = pad(now.getSeconds());
-  clockEl.textContent = `${hh}:${mm}:${ss}`;
+function updateDisplay() {
+  const m = Math.floor(remaining / 60);
+  const s = remaining % 60;
+  displayEl.textContent = `${pad(m)}:${pad(s)}`;
+}
 
-  if (alarmTime && !alarmFired) {
-    const current = `${hh}:${mm}`;
-    if (current === alarmTime && now.getSeconds() === 0) {
-      triggerAlarm();
+function beep() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  [0, 0.3, 0.6, 1.0].forEach(offset => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = offset === 1.0 ? 1046 : 880;
+    gain.gain.setValueAtTime(0.4, ctx.currentTime + offset);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.25);
+    osc.start(ctx.currentTime + offset);
+    osc.stop(ctx.currentTime + offset + 0.25);
+  });
+}
+
+function start() {
+  if (running) return;
+
+  if (remaining === 0) {
+    const m = Math.max(0, parseInt(minutesEl.value) || 0);
+    const s = Math.max(0, Math.min(59, parseInt(secondsEl.value) || 0));
+    remaining = m * 60 + s;
+    if (remaining === 0) {
+      statusEl.textContent = '時間を設定してください';
+      return;
     }
   }
+
+  running = true;
+  statusEl.textContent = '';
+  displayEl.classList.remove('finished');
+  inputsEl.classList.add('hidden');
+  startBtn.classList.add('hidden');
+  pauseBtn.classList.remove('hidden');
+
+  intervalId = setInterval(() => {
+    remaining--;
+    updateDisplay();
+    if (remaining <= 0) {
+      clearInterval(intervalId);
+      intervalId = null;
+      running = false;
+      displayEl.classList.add('finished');
+      statusEl.textContent = '時間になりました！';
+      pauseBtn.classList.add('hidden');
+      startBtn.classList.remove('hidden');
+      beep();
+    }
+  }, 1000);
 }
 
-function triggerAlarm() {
-  alarmFired = true;
-  modal.classList.remove('hidden');
-  startBeep();
+function pause() {
+  if (!running) return;
+  clearInterval(intervalId);
+  intervalId = null;
+  running = false;
+  pauseBtn.classList.add('hidden');
+  startBtn.classList.remove('hidden');
+  statusEl.textContent = '一時停止中';
 }
 
-function dismissAlarm() {
-  modal.classList.add('hidden');
-  stopBeep();
-  alarmTime = null;
-  alarmFired = false;
-  statusEl.textContent = 'アラームなし';
-  cancelBtn.classList.add('hidden');
+function reset() {
+  clearInterval(intervalId);
+  intervalId = null;
+  running = false;
+  remaining = 0;
+  minutesEl.value = 0;
+  secondsEl.value = 0;
+  displayEl.textContent = '00:00';
+  displayEl.classList.remove('finished');
+  inputsEl.classList.remove('hidden');
+  startBtn.classList.remove('hidden');
+  pauseBtn.classList.add('hidden');
+  statusEl.textContent = '';
 }
 
-setBtn.addEventListener('click', () => {
-  const val = alarmTimeEl.value;
-  if (!val) {
-    statusEl.textContent = '時刻を選択してください';
-    return;
-  }
-  alarmTime = val;
-  alarmFired = false;
-  statusEl.textContent = `アラームセット済み: ${val}`;
-  cancelBtn.classList.remove('hidden');
+startBtn.addEventListener('click', start);
+pauseBtn.addEventListener('click', pause);
+resetBtn.addEventListener('click', reset);
+
+minutesEl.addEventListener('input', () => {
+  if (!running && remaining === 0) updateFromInputs();
+});
+secondsEl.addEventListener('input', () => {
+  if (!running && remaining === 0) updateFromInputs();
 });
 
-cancelBtn.addEventListener('click', () => {
-  alarmTime = null;
-  alarmFired = false;
-  statusEl.textContent = 'アラームなし';
-  cancelBtn.classList.add('hidden');
-  alarmTimeEl.value = '';
-});
-
-stopBtn.addEventListener('click', dismissAlarm);
-
-setInterval(tick, 1000);
-tick();
+function updateFromInputs() {
+  const m = Math.max(0, parseInt(minutesEl.value) || 0);
+  const s = Math.max(0, Math.min(59, parseInt(secondsEl.value) || 0));
+  displayEl.textContent = `${pad(m)}:${pad(s)}`;
+}
