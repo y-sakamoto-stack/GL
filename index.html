@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>シンプルアラーム</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>アラーム</h1>
+
+    <div class="clock" id="clock">00:00:00</div>
+
+    <div class="alarm-set">
+      <label for="alarm-time">アラーム時刻</label>
+      <input type="time" id="alarm-time" />
+      <button id="set-btn">セット</button>
+    </div>
+
+    <div class="alarm-status" id="alarm-status">アラームなし</div>
+
+    <button id="cancel-btn" class="cancel-btn hidden">キャンセル</button>
+  </div>
+
+  <div class="modal hidden" id="modal">
+    <div class="modal-box">
+      <p>アラームが鳴っています！</p>
+      <button id="stop-btn">止める</button>
+    </div>
+  </div>
+
+  <audio id="alarm-audio" loop>
+    <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mpeg" />
+  </audio>
+
+  <script src="app.js"></script>
+</body>
+</html>

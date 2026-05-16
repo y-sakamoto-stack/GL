@@ -1,0 +1,150 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #1a1a2e;
+  color: #eaeaea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.container {
+  background: #16213e;
+  border-radius: 20px;
+  padding: 48px 40px;
+  text-align: center;
+  width: 340px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+h1 {
+  font-size: 1.4rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 32px;
+  color: #a8dadc;
+}
+
+.clock {
+  font-size: 3.2rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #e2e2e2;
+  margin-bottom: 36px;
+  font-variant-numeric: tabular-nums;
+}
+
+.alarm-set {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.alarm-set label {
+  font-size: 0.85rem;
+  color: #a8dadc;
+  text-align: left;
+}
+
+.alarm-set input[type="time"] {
+  background: #0f3460;
+  border: 1px solid #457b9d;
+  border-radius: 10px;
+  color: #eaeaea;
+  font-size: 1.6rem;
+  padding: 10px 16px;
+  text-align: center;
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+}
+
+.alarm-set input[type="time"]:focus {
+  border-color: #a8dadc;
+}
+
+#set-btn {
+  background: #457b9d;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 12px;
+  transition: background 0.2s;
+}
+
+#set-btn:hover {
+  background: #1d6a96;
+}
+
+.alarm-status {
+  font-size: 0.9rem;
+  color: #a8dadc;
+  margin-bottom: 16px;
+  min-height: 24px;
+}
+
+.cancel-btn {
+  background: #e63946;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 10px 24px;
+  transition: background 0.2s;
+}
+
+.cancel-btn:hover {
+  background: #c1121f;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-box {
+  background: #16213e;
+  border: 2px solid #a8dadc;
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+}
+
+.modal-box p {
+  font-size: 1.2rem;
+  margin-bottom: 24px;
+  color: #eaeaea;
+}
+
+#stop-btn {
+  background: #e63946;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 12px 32px;
+  transition: background 0.2s;
+}
+
+#stop-btn:hover {
+  background: #c1121f;
+}
