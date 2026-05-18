@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chatwork タスク抽出</title>
+  <link rel="stylesheet" href="chatwork.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Chatwork タスク抽出</h1>
+      <button id="settings-toggle" class="icon-btn" title="設定">⚙</button>
+    </header>
+
+    <section id="settings" class="hidden">
+      <div class="field">
+        <label for="cw-token">Chatwork APIトークン <span class="required">*</span></label>
+        <input type="password" id="cw-token" placeholder="APIトークンを入力" autocomplete="off" />
+        <small>Chatwork設定 → API → APIトークンで確認できます</small>
+      </div>
+      <div class="field">
+        <label for="claude-key">Claude APIキー <span class="optional">(AI判定に使用・任意)</span></label>
+        <input type="password" id="claude-key" placeholder="sk-ant-..." autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="period">チェックする期間</label>
+        <select id="period">
+          <option value="24">過去24時間</option>
+          <option value="48">過去48時間</option>
+          <option value="168">過去1週間</option>
+        </select>
+      </div>
+      <button id="save-settings" class="btn-primary">設定を保存</button>
+    </section>
+
+    <div class="controls">
+      <button id="analyze-btn" class="btn-analyze">
+        <span id="btn-label">🔍 分析開始</span>
+      </button>
+    </div>
+
+    <div id="status-bar" class="hidden">
+      <div class="progress-wrap">
+        <div id="progress-bar" class="progress-bar"></div>
+      </div>
+      <p id="status-text"></p>
+    </div>
+
+    <div id="summary" class="hidden">
+      <span id="summary-text"></span>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <script src="chatwork.js"></script>
+</body>
+</html>
