@@ -232,10 +232,22 @@ small {
 .mention-badge {
   font-size: 0.7rem;
   color: #1a1a2e;
-  background: #a8dadc;
   border-radius: 6px;
   padding: 2px 8px;
   white-space: nowrap;
+  font-weight: 600;
+}
+
+.badge-to {
+  background: #a8dadc;
+}
+
+.badge-all {
+  background: #e9c46a;
+}
+
+.badge-reply {
+  background: #f4a261;
 }
 
 .message-meta {
