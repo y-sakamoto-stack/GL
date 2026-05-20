@@ -1,16 +1,21 @@
 {
   "manifest_version": 3,
   "name": "Chatwork タスク抽出ツール",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Chatworkから返信すべきチャットを抽出してタスク化します",
-  "permissions": ["storage"],
+  "permissions": ["storage", "sidePanel"],
   "host_permissions": [
     "https://api.chatwork.com/*",
     "https://api.anthropic.com/*"
   ],
   "action": {
-    "default_popup": "chatwork.html",
     "default_title": "Chatwork タスク抽出"
+  },
+  "side_panel": {
+    "default_path": "chatwork.html"
+  },
+  "background": {
+    "service_worker": "background.js"
   },
   "icons": {
     "48": "icon.png",
