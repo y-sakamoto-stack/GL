@@ -230,7 +230,15 @@ function renderResults(items) {
 async function analyze() {
   const hoursBack = parseInt(periodEl.value, 10);
 
-  // トークンはストレージから直接取得（UIのinputを経由しない）
+  // 入力欄に値があれば自動保存してから使う
+  const inputToken = cwTokenEl.value.trim();
+  const inputClaudeKey = claudeKeyEl.value.trim();
+  if (inputToken) {
+    await new Promise(resolve =>
+      chrome.storage.local.set({ cwToken: inputToken, claudeKey: inputClaudeKey, period: periodEl.value }, resolve)
+    );
+  }
+
   const { cwToken: token, claudeKey } = await new Promise(resolve =>
     chrome.storage.local.get(['cwToken', 'claudeKey'], resolve)
   );
