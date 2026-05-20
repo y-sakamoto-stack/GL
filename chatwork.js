@@ -5,6 +5,7 @@ const CLAUDE_BATCH_SIZE = 15;
 const cwTokenEl = document.getElementById('cw-token');
 const claudeKeyEl = document.getElementById('claude-key');
 const periodEl = document.getElementById('period');
+const contextDetectEl = document.getElementById('context-detect');
 const settingsEl = document.getElementById('settings');
 const settingsToggle = document.getElementById('settings-toggle');
 const saveSettingsBtn = document.getElementById('save-settings');
@@ -18,13 +19,14 @@ const summaryEl = document.getElementById('summary');
 const summaryText = document.getElementById('summary-text');
 const resultsEl = document.getElementById('results');
 
-// --- Storage (chrome.storage.local でサンドボックス保存) ---
+// --- Storage ---
 
 function loadSettings() {
-  chrome.storage.local.get(['cwToken', 'claudeKey', 'period'], (data) => {
+  chrome.storage.local.get(['cwToken', 'claudeKey', 'period', 'contextDetect'], (data) => {
     if (data.cwToken) cwTokenEl.value = data.cwToken;
     if (data.claudeKey) claudeKeyEl.value = data.claudeKey;
     if (data.period) periodEl.value = data.period;
+    if (data.contextDetect) contextDetectEl.checked = true;
   });
 }
 
@@ -35,10 +37,13 @@ function saveSettings() {
     showError('APIトークンを入力してください。');
     return;
   }
-  chrome.storage.local.set({ cwToken, claudeKey, period: periodEl.value }, () => {
-    settingsEl.classList.add('hidden');
-    setStatus('設定を保存しました', 100);
-  });
+  chrome.storage.local.set(
+    { cwToken, claudeKey, period: periodEl.value, contextDetect: contextDetectEl.checked },
+    () => {
+      settingsEl.classList.add('hidden');
+      setStatus('設定を保存しました', 100);
+    }
+  );
 }
 
 function clearSettings() {
@@ -86,16 +91,95 @@ function getMentionType(body, accountId) {
   return 'UNKNOWN';
 }
 
-// --- Claude API ---
+function cleanBody(body) {
+  return body
+    .replace(/\[To:\d+\]/g, '')
+    .replace(/\[toall\]/g, '')
+    .replace(/\[rp[^\]]*\]/g, '')
+    .trim();
+}
+
+// --- Claude: 文脈から自分宛メッセージを検出 ---
+
+async function detectContextualMessages(claudeKey, room, messages, myName, myAccountId, cutoffSec) {
+  // 自分の発言を含む直近30件を会話コンテキストとして送る
+  const recent = messages
+    .filter(m => m.send_time >= cutoffSec)
+    .slice(-30);
+
+  if (recent.length === 0) return [];
+
+  const conversation = recent.map(m => {
+    const time = new Date(m.send_time * 1000).toLocaleString('ja-JP', {
+      month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    const body = cleanBody(m.body).slice(0, 300);
+    const isMe = String(m.account.account_id) === String(myAccountId);
+    return `[ID:${m.message_id}][${time}] ${m.account.name}${isMe ? '（自分）' : ''}: ${body}`;
+  }).join('\n');
+
+  const prompt = `あなたはChatworkのメッセージ分析AIです。
+ユーザー「${myName}」の受信トレイを確認しています。
+
+ルーム: ${room.name}
+会話（古い順）:
+${conversation}
+
+以下の条件を満たすメッセージを特定してください:
+・「${myName}さん」など名前で呼びかけているメッセージ
+・役職・役割（担当者、リーダーなど）で${myName}に依頼していると判断できるメッセージ
+・会話の流れから${myName}が返答・対応すべき質問や依頼
+・「@TO」指定がなくても文脈上${myName}宛と判断できるもの
+
+${myName}自身が送ったメッセージ（自分）は除外してください。
+@TOや[rp]で明示的にメンションされているものも除外してください（別途検出済み）。
+
+JSON配列のみを返してください（説明不要）:
+[{"message_id": "123", "needs_reply": true, "reason": "理由を簡潔に"}]
+対象なし: []`;
+
+  const res = await fetch(CLAUDE_API, {
+    method: 'POST',
+    headers: {
+      'x-api-key': claudeKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Claude API エラー (${res.status})${body ? ': ' + body : ''}`);
+  }
+
+  const data = await res.json();
+  const text = data.content[0].text;
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+
+  const parsed = JSON.parse(match[0]);
+  // message_idに対応するmsgオブジェクトを返す
+  return parsed
+    .filter(r => r.needs_reply !== false)
+    .map(r => {
+      const msg = recent.find(m => String(m.message_id) === String(r.message_id));
+      if (!msg) return null;
+      return { room, msg, mentionType: 'AI', reason: r.reason || null };
+    })
+    .filter(Boolean);
+}
+
+// --- Claude: メンション済みメッセージの返信要否を判定 ---
 
 async function classifyBatch(claudeKey, batch) {
   const items = batch.map((c, i) => {
-    const body = c.msg.body
-      .replace(/\[To:\d+\]/g, '')
-      .replace(/\[toall\]/g, '')
-      .replace(/\[rp[^\]]*\]/g, '')
-      .trim()
-      .slice(0, 400);
+    const body = cleanBody(c.msg.body).slice(0, 400);
     return `[${i}] 送信者: ${c.msg.account.name} / ルーム: ${c.room.name}\n${body}`;
   }).join('\n---\n');
 
@@ -137,19 +221,6 @@ JSON配列のみを返してください（説明不要）:
   return JSON.parse(match[0]);
 }
 
-async function classifyWithClaude(claudeKey, candidates) {
-  const results = [];
-  for (let i = 0; i < candidates.length; i += CLAUDE_BATCH_SIZE) {
-    const batch = candidates.slice(i, i + CLAUDE_BATCH_SIZE);
-    const batchResults = await classifyBatch(claudeKey, batch);
-    // Adjust indices to global position
-    for (const r of batchResults) {
-      results.push({ ...r, index: r.index + i });
-    }
-  }
-  return results;
-}
-
 // --- UI helpers ---
 
 function setStatus(msg, progress = null) {
@@ -184,8 +255,8 @@ function formatTime(unixSec) {
   });
 }
 
-const BADGE_LABEL = { TO: 'TO あり', ALL: 'toall', REPLY: 'リプライ' };
-const BADGE_CLASS = { TO: 'badge-to', ALL: 'badge-all', REPLY: 'badge-reply' };
+const BADGE_LABEL = { TO: 'TO あり', ALL: 'toall', REPLY: 'リプライ', AI: 'AI検出' };
+const BADGE_CLASS = { TO: 'badge-to', ALL: 'badge-all', REPLY: 'badge-reply', AI: 'badge-ai' };
 
 function renderResults(items) {
   if (items.length === 0) {
@@ -193,16 +264,11 @@ function renderResults(items) {
     return;
   }
 
-  // Sort newest first
   const sorted = [...items].sort((a, b) => b.msg.send_time - a.msg.send_time);
 
   resultsEl.innerHTML = sorted.map(({ room, msg, reason, mentionType }) => {
-    const cleaned = msg.body
-      .replace(/\[To:\d+\]/g, '')
-      .replace(/\[toall\]/g, '')
-      .replace(/\[rp[^\]]*\]/g, '')
-      .trim();
-    const preview = cleaned.slice(0, 200) + (cleaned.length > 200 ? '…' : '');
+    const preview = cleanBody(msg.body).slice(0, 200);
+    const hasMore = cleanBody(msg.body).length > 200;
     const roomUrl = `https://www.chatwork.com/#!rid${room.room_id}`;
     const badgeLabel = BADGE_LABEL[mentionType] || mentionType;
     const badgeClass = BADGE_CLASS[mentionType] || 'badge-to';
@@ -217,7 +283,7 @@ function renderResults(items) {
           <span class="sender">${escapeHtml(msg.account.name)}</span>
           <span class="time">${formatTime(msg.send_time)}</span>
         </div>
-        <div class="message-body">${escapeHtml(preview)}</div>
+        <div class="message-body">${escapeHtml(preview)}${hasMore ? '…' : ''}</div>
         ${reason ? `<div class="ai-reason">💡 ${escapeHtml(reason)}</div>` : ''}
         <a href="${roomUrl}" target="_blank" class="open-link">Chatworkで開く →</a>
       </div>
@@ -229,13 +295,17 @@ function renderResults(items) {
 
 async function analyze() {
   const hoursBack = parseInt(periodEl.value, 10);
+  const useContextDetect = contextDetectEl.checked;
 
-  // 入力欄に値があれば自動保存してから使う
+  // 入力欄に値があれば自動保存
   const inputToken = cwTokenEl.value.trim();
   const inputClaudeKey = claudeKeyEl.value.trim();
   if (inputToken) {
     await new Promise(resolve =>
-      chrome.storage.local.set({ cwToken: inputToken, claudeKey: inputClaudeKey, period: periodEl.value }, resolve)
+      chrome.storage.local.set(
+        { cwToken: inputToken, claudeKey: inputClaudeKey, period: periodEl.value, contextDetect: useContextDetect },
+        resolve
+      )
     );
   }
 
@@ -248,6 +318,11 @@ async function analyze() {
     return;
   }
 
+  if (useContextDetect && !claudeKey) {
+    showError('AI文脈検出にはClaude APIキーが必要です。⚙ から設定してください。');
+    return;
+  }
+
   analyzeBtn.disabled = true;
   btnLabel.textContent = '分析中...';
   resultsEl.innerHTML = '';
@@ -257,23 +332,18 @@ async function analyze() {
     setStatus('自分のアカウント情報を取得中...', 5);
     const me = await cwFetch('/me', token);
     const myAccountId = me.account_id;
+    const myName = me.name;
 
     setStatus('ルーム一覧を取得中...', 10);
     const rooms = await cwFetch('/rooms', token);
 
     const cutoffSec = Math.floor(Date.now() / 1000) - hoursBack * 3600;
 
-    // Tier 1: rooms with unread mentions (mention_num > 0) — always check
-    // Tier 2: active rooms in period with unread messages — check if no Tier 1 or for wider coverage
     const mentionRooms = rooms.filter(r => r.mention_num > 0);
     const otherActiveRooms = rooms.filter(
       r => r.mention_num === 0 && r.unread_num > 0 && r.last_update_time >= cutoffSec
     );
-
-    const targetRooms = [
-      ...mentionRooms,
-      ...otherActiveRooms,
-    ];
+    const targetRooms = [...mentionRooms, ...otherActiveRooms];
 
     if (targetRooms.length === 0) {
       setStatus('チェック対象のルームがありません', 100);
@@ -281,24 +351,26 @@ async function analyze() {
       return;
     }
 
-    const candidates = [];
+    // Phase 1: メッセージ取得 & メンション検出
+    const mentionCandidates = [];
+    // ルームごとに取得したメッセージをキャッシュ（文脈検出で再利用）
+    const roomMessages = new Map();
 
     for (let i = 0; i < targetRooms.length; i++) {
       const room = targetRooms[i];
-      const progress = 10 + Math.round((i / targetRooms.length) * 65);
-      const tier = room.mention_num > 0 ? `★ ` : '';
-      setStatus(`${i + 1}/${targetRooms.length}: ${tier}${room.name} をチェック中...`, progress);
+      const progress = 10 + Math.round((i / targetRooms.length) * 50);
+      setStatus(`${i + 1}/${targetRooms.length}: ${room.name} をチェック中...`, progress);
 
       try {
         const messages = await cwFetch(`/rooms/${room.room_id}/messages?force=1`, token);
+        roomMessages.set(room.room_id, messages);
 
         for (const msg of messages) {
           const isFromMe = String(msg.account.account_id) === String(myAccountId);
           const isRecent = msg.send_time >= cutoffSec;
           const mentioned = isMentionedInBody(msg.body, myAccountId);
-
           if (!isFromMe && isRecent && mentioned) {
-            candidates.push({
+            mentionCandidates.push({
               room,
               msg,
               mentionType: getMentionType(msg.body, myAccountId),
@@ -310,49 +382,74 @@ async function analyze() {
         console.warn(`ルーム "${room.name}" の取得に失敗:`, e);
       }
 
-      // Rate limit buffer: ~200ms between requests (max 300 req/min safe)
       await new Promise(r => setTimeout(r, 200));
     }
 
-    let finalItems = candidates;
+    // Phase 2: AI文脈検出（有効時）
+    const mentionedMessageIds = new Set(mentionCandidates.map(c => String(c.msg.message_id)));
+    const contextCandidates = [];
 
-    if (claudeKey && candidates.length > 0) {
-      const batchCount = Math.ceil(candidates.length / CLAUDE_BATCH_SIZE);
-      for (let b = 0; b < batchCount; b++) {
-        const from = b * CLAUDE_BATCH_SIZE;
-        const to = Math.min(from + CLAUDE_BATCH_SIZE, candidates.length);
-        setStatus(
-          `AI分析中... (${to}/${candidates.length}件)`,
-          75 + Math.round((b / batchCount) * 20)
-        );
+    if (useContextDetect && claudeKey) {
+      const contextRooms = targetRooms.filter(r => roomMessages.has(r.room_id));
+
+      for (let i = 0; i < contextRooms.length; i++) {
+        const room = contextRooms[i];
+        const progress = 60 + Math.round((i / contextRooms.length) * 25);
+        setStatus(`AI文脈検出中... (${i + 1}/${contextRooms.length}: ${room.name})`, progress);
+
         try {
-          const batch = candidates.slice(from, to);
-          const batchResults = await classifyBatch(claudeKey, batch);
-          for (const r of batchResults) {
-            if (candidates[from + r.index]) {
-              candidates[from + r.index].reason = r.reason || null;
-              candidates[from + r.index]._needsReply = r.needs_reply;
+          const messages = roomMessages.get(room.room_id);
+          const found = await detectContextualMessages(
+            claudeKey, room, messages, myName, myAccountId, cutoffSec
+          );
+          // 明示的メンション済みは除外（重複防止）
+          for (const item of found) {
+            if (!mentionedMessageIds.has(String(item.msg.message_id))) {
+              contextCandidates.push(item);
+              mentionedMessageIds.add(String(item.msg.message_id));
             }
           }
         } catch (e) {
-          console.error('Claude API batch error:', e);
-          setStatus('AI分析に失敗しました。メンション一覧を表示します。', 75);
+          console.warn(`ルーム "${room.name}" の文脈検出に失敗:`, e);
+        }
+      }
+    }
+
+    // Phase 3: メンション候補にClaudeで返信要否判定
+    let finalMentionItems = mentionCandidates;
+
+    if (claudeKey && mentionCandidates.length > 0) {
+      for (let i = 0; i < mentionCandidates.length; i += CLAUDE_BATCH_SIZE) {
+        const from = i;
+        const to = Math.min(i + CLAUDE_BATCH_SIZE, mentionCandidates.length);
+        setStatus(`メンション返信要否を判定中... (${to}/${mentionCandidates.length}件)`, 85);
+        try {
+          const batch = mentionCandidates.slice(from, to);
+          const results = await classifyBatch(claudeKey, batch);
+          for (const r of results) {
+            if (mentionCandidates[from + r.index]) {
+              mentionCandidates[from + r.index].reason = r.reason || null;
+              mentionCandidates[from + r.index]._needsReply = r.needs_reply;
+            }
+          }
+        } catch (e) {
+          console.error('Claude classify error:', e);
           break;
         }
       }
-
-      // If Claude responded, filter to only needs_reply=true
-      // (if _needsReply is undefined, AI didn't respond → keep the item)
-      finalItems = candidates.filter(c => c._needsReply !== false);
+      finalMentionItems = mentionCandidates.filter(c => c._needsReply !== false);
     }
+
+    const finalItems = [...finalMentionItems, ...contextCandidates];
 
     setStatus('完了', 100);
 
-    const aiNote = claudeKey ? 'AI判定済み' : 'メンション検出のみ';
-    const mentionNote = mentionRooms.length > 0
-      ? `(未読メンションあり: ${mentionRooms.length}ルーム)`
-      : '';
-    summaryText.textContent = `${finalItems.length}件のメッセージ — ${aiNote} ${mentionNote}`;
+    const parts = [];
+    if (finalMentionItems.length > 0) parts.push(`メンション ${finalMentionItems.length}件`);
+    if (contextCandidates.length > 0) parts.push(`AI文脈検出 ${contextCandidates.length}件`);
+    summaryText.textContent = parts.length > 0
+      ? `${finalItems.length}件 — ${parts.join(' / ')}`
+      : '該当メッセージなし';
     summaryEl.classList.remove('hidden');
 
     renderResults(finalItems);
@@ -376,7 +473,6 @@ saveSettingsBtn.addEventListener('click', saveSettings);
 clearSettingsBtn.addEventListener('click', clearSettings);
 analyzeBtn.addEventListener('click', analyze);
 
-// 表示/非表示トグル
 document.querySelectorAll('.toggle-visibility').forEach(btn => {
   btn.addEventListener('click', () => {
     const input = document.getElementById(btn.dataset.target);

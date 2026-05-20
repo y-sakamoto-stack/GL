@@ -166,6 +166,68 @@ small {
   background: #1d6a96;
 }
 
+/* Mode toggle */
+.mode-toggle {
+  background: #16213e;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.switch-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: #4a4e69;
+  border-radius: 10px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+#context-detect {
+  display: none;
+}
+
+#context-detect:checked + .switch-track {
+  background: #457b9d;
+}
+
+#context-detect:checked + .switch-track .switch-thumb {
+  transform: translateX(16px);
+}
+
+.switch-text {
+  font-size: 0.9rem;
+  color: #eaeaea;
+}
+
+#context-note {
+  font-size: 0.72rem;
+  color: #888;
+  padding-left: 46px;
+}
+
 .controls {
   display: flex;
   justify-content: center;
@@ -294,6 +356,11 @@ small {
 
 .badge-reply {
   background: #f4a261;
+}
+
+.badge-ai {
+  background: #9b5de5;
+  color: #fff;
 }
 
 .message-meta {
