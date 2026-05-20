@@ -103,6 +103,52 @@ small {
   color: #888;
 }
 
+.input-with-toggle {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.input-with-toggle input {
+  flex: 1;
+}
+
+.toggle-visibility {
+  background: none;
+  border: 1px solid #457b9d;
+  border-radius: 6px;
+  color: #a8dadc;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 6px 8px;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.toggle-visibility:hover {
+  background: #0f3460;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-danger {
+  background: rgba(230, 57, 70, 0.15);
+  border: 1px solid #e63946;
+  border-radius: 8px;
+  color: #e63946;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  transition: background 0.2s;
+}
+
+.btn-danger:hover {
+  background: rgba(230, 57, 70, 0.3);
+}
+
 /* Buttons */
 .btn-primary {
   background: #457b9d;

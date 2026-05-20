@@ -8,6 +8,7 @@ const periodEl = document.getElementById('period');
 const settingsEl = document.getElementById('settings');
 const settingsToggle = document.getElementById('settings-toggle');
 const saveSettingsBtn = document.getElementById('save-settings');
+const clearSettingsBtn = document.getElementById('clear-settings');
 const analyzeBtn = document.getElementById('analyze-btn');
 const btnLabel = document.getElementById('btn-label');
 const statusBar = document.getElementById('status-bar');
@@ -17,25 +18,36 @@ const summaryEl = document.getElementById('summary');
 const summaryText = document.getElementById('summary-text');
 const resultsEl = document.getElementById('results');
 
-// --- Storage ---
+// --- Storage (chrome.storage.local でサンドボックス保存) ---
 
 function loadSettings() {
-  try {
-    const s = JSON.parse(localStorage.getItem('cw_settings') || '{}');
-    if (s.cwToken) cwTokenEl.value = s.cwToken;
-    if (s.claudeKey) claudeKeyEl.value = s.claudeKey;
-    if (s.period) periodEl.value = s.period;
-  } catch (_) {}
+  chrome.storage.local.get(['cwToken', 'claudeKey', 'period'], (data) => {
+    if (data.cwToken) cwTokenEl.value = data.cwToken;
+    if (data.claudeKey) claudeKeyEl.value = data.claudeKey;
+    if (data.period) periodEl.value = data.period;
+  });
 }
 
 function saveSettings() {
-  localStorage.setItem('cw_settings', JSON.stringify({
-    cwToken: cwTokenEl.value,
-    claudeKey: claudeKeyEl.value,
-    period: periodEl.value,
-  }));
-  settingsEl.classList.add('hidden');
-  setStatus('設定を保存しました', 100);
+  const cwToken = cwTokenEl.value.trim();
+  const claudeKey = claudeKeyEl.value.trim();
+  if (!cwToken) {
+    showError('APIトークンを入力してください。');
+    return;
+  }
+  chrome.storage.local.set({ cwToken, claudeKey, period: periodEl.value }, () => {
+    settingsEl.classList.add('hidden');
+    setStatus('設定を保存しました', 100);
+  });
+}
+
+function clearSettings() {
+  if (!confirm('保存されているAPIトークンとAPIキーを削除しますか？')) return;
+  chrome.storage.local.remove(['cwToken', 'claudeKey'], () => {
+    cwTokenEl.value = '';
+    claudeKeyEl.value = '';
+    setStatus('トークンを削除しました', 100);
+  });
 }
 
 // --- Chatwork API ---
@@ -216,9 +228,12 @@ function renderResults(items) {
 // --- Main ---
 
 async function analyze() {
-  const token = cwTokenEl.value.trim();
-  const claudeKey = claudeKeyEl.value.trim();
   const hoursBack = parseInt(periodEl.value, 10);
+
+  // トークンはストレージから直接取得（UIのinputを経由しない）
+  const { cwToken: token, claudeKey } = await new Promise(resolve =>
+    chrome.storage.local.get(['cwToken', 'claudeKey'], resolve)
+  );
 
   if (!token) {
     showError('ChatworkのAPIトークンを入力してください。右上の ⚙ から設定できます。');
@@ -350,6 +365,18 @@ settingsToggle.addEventListener('click', () => {
 });
 
 saveSettingsBtn.addEventListener('click', saveSettings);
+clearSettingsBtn.addEventListener('click', clearSettings);
 analyzeBtn.addEventListener('click', analyze);
+
+// 表示/非表示トグル
+document.querySelectorAll('.toggle-visibility').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = document.getElementById(btn.dataset.target);
+    if (!input) return;
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    btn.textContent = isHidden ? '🙈' : '👁';
+  });
+});
 
 loadSettings();

@@ -15,12 +15,18 @@
     <section id="settings" class="hidden">
       <div class="field">
         <label for="cw-token">Chatwork APIトークン <span class="required">*</span></label>
-        <input type="password" id="cw-token" placeholder="APIトークンを入力" autocomplete="off" />
+        <div class="input-with-toggle">
+          <input type="password" id="cw-token" placeholder="APIトークンを入力" autocomplete="off" />
+          <button type="button" class="toggle-visibility" data-target="cw-token" title="表示/非表示">👁</button>
+        </div>
         <small>Chatwork設定 → API → APIトークンで確認できます</small>
       </div>
       <div class="field">
         <label for="claude-key">Claude APIキー <span class="optional">(AI判定に使用・任意)</span></label>
-        <input type="password" id="claude-key" placeholder="sk-ant-..." autocomplete="off" />
+        <div class="input-with-toggle">
+          <input type="password" id="claude-key" placeholder="sk-ant-..." autocomplete="off" />
+          <button type="button" class="toggle-visibility" data-target="claude-key" title="表示/非表示">👁</button>
+        </div>
       </div>
       <div class="field">
         <label for="period">チェックする期間</label>
@@ -30,7 +36,10 @@
           <option value="168">過去1週間</option>
         </select>
       </div>
-      <button id="save-settings" class="btn-primary">設定を保存</button>
+      <div class="settings-actions">
+        <button id="save-settings" class="btn-primary">設定を保存</button>
+        <button id="clear-settings" class="btn-danger">トークンを削除</button>
+      </div>
     </section>
 
     <div class="controls">
