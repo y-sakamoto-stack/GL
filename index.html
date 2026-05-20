@@ -3,37 +3,143 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>シンプルアラーム</title>
+  <title>チームタスク共有</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>アラーム</h1>
 
-    <div class="clock" id="clock">00:00:00</div>
-
-    <div class="alarm-set">
-      <label for="alarm-time">アラーム時刻</label>
-      <input type="time" id="alarm-time" />
-      <button id="set-btn">セット</button>
+  <header class="header">
+    <div class="header-left">
+      <h1>チームタスク</h1>
+      <span class="sync-dot" id="sync-dot" title="リアルタイム同期中"></span>
     </div>
+    <button class="btn btn-primary" id="add-task-btn">＋ タスク追加</button>
+  </header>
 
-    <div class="alarm-status" id="alarm-status">アラームなし</div>
-
-    <button id="cancel-btn" class="cancel-btn hidden">キャンセル</button>
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-num" id="stat-todo">0</span>
+      <span class="stat-label">未着手</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span class="stat-num" id="stat-inprogress">0</span>
+      <span class="stat-label">進行中</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span class="stat-num" id="stat-done">0</span>
+      <span class="stat-label">完了</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item progress-item">
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <span class="stat-label" id="progress-label">0% 完了</span>
+    </div>
   </div>
 
-  <div class="modal hidden" id="modal">
-    <div class="modal-box">
-      <p>アラームが鳴っています！</p>
-      <button id="stop-btn">止める</button>
+  <div class="filters">
+    <input type="text" id="filter-search" placeholder="🔍 タスクを検索..." />
+    <select id="filter-assignee"><option value="">全メンバー</option></select>
+    <select id="filter-priority">
+      <option value="">全優先度</option>
+      <option value="high">🔴 高</option>
+      <option value="medium">🟡 中</option>
+      <option value="low">🟢 低</option>
+    </select>
+  </div>
+
+  <main class="board">
+    <div class="column">
+      <div class="column-header todo-header">
+        <span>未着手</span>
+        <span class="col-count" id="count-todo">0</span>
+      </div>
+      <div class="task-list" id="list-todo"></div>
+    </div>
+    <div class="column">
+      <div class="column-header inprogress-header">
+        <span>進行中</span>
+        <span class="col-count" id="count-inprogress">0</span>
+      </div>
+      <div class="task-list" id="list-inprogress"></div>
+    </div>
+    <div class="column">
+      <div class="column-header done-header">
+        <span>完了</span>
+        <span class="col-count" id="count-done">0</span>
+      </div>
+      <div class="task-list" id="list-done"></div>
+    </div>
+  </main>
+
+  <!-- Task modal -->
+  <div class="overlay hidden" id="task-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">タスク追加</h2>
+        <button class="close-btn" id="modal-close">✕</button>
+      </div>
+      <form id="task-form">
+        <div class="field">
+          <label>タイトル <span class="required">*</span></label>
+          <input type="text" id="f-title" required placeholder="タスクのタイトル" />
+        </div>
+        <div class="field">
+          <label>詳細</label>
+          <textarea id="f-desc" rows="3" placeholder="詳細説明（任意）"></textarea>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>担当者</label>
+            <input type="text" id="f-assignee" placeholder="名前" list="assignee-options" />
+            <datalist id="assignee-options"></datalist>
+          </div>
+          <div class="field">
+            <label>優先度</label>
+            <select id="f-priority">
+              <option value="high">🔴 高</option>
+              <option value="medium" selected>🟡 中</option>
+              <option value="low">🟢 低</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>ステータス</label>
+            <select id="f-status">
+              <option value="todo">未着手</option>
+              <option value="inprogress">進行中</option>
+              <option value="done">完了</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>期限</label>
+            <input type="date" id="f-due" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" id="modal-cancel">キャンセル</button>
+          <button type="submit" class="btn btn-primary" id="modal-submit">追加</button>
+        </div>
+      </form>
     </div>
   </div>
 
-  <audio id="alarm-audio" loop>
-    <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mpeg" />
-  </audio>
+  <!-- Delete confirm modal -->
+  <div class="overlay hidden" id="del-overlay">
+    <div class="modal modal-sm">
+      <p>このタスクを削除しますか？</p>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="del-cancel">キャンセル</button>
+        <button class="btn btn-danger" id="del-confirm">削除</button>
+      </div>
+    </div>
+  </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
 </html>
