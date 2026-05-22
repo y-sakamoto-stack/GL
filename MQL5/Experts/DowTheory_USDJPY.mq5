@@ -44,12 +44,18 @@ input int              InpVolPeriod     = 20;         // 出来高平均期間 (
 input double           InpVolMultiplier = 1.2;        // 出来高閾値倍率 (平均のX倍以上)
 
 input group "=== ストップロス バッファ ==="
-input double           InpSLBuffer      = 5.0;        // SL追加バッファ (pips)
+input double           InpSLBuffer      = 3.0;        // SL追加バッファ (pips)
+
+input group "=== 1日以内決済 (SL/TPキャップ & 時間切れ) ==="
+input int              InpATRPeriod     = 14;         // ATR期間
+input double           InpATRSLMult     = 1.5;        // SL幅 = ATR × この倍率
+input double           InpMaxSLPips     = 35.0;       // SL最大距離 (pips) ― ATRが大きくてもこれ以上離さない
+input int              InpMaxHoldHours  = 20;         // 最大保有時間 (時間) ― 超えたら強制決済
 
 input group "=== トレーリングストップ ==="
 input bool             InpUseTrailing   = true;       // トレーリングストップ使用
-input double           InpTrailingStart = 20.0;       // トレーリング開始利益 (pips)
-input double           InpTrailingStep  = 10.0;       // トレーリングステップ (pips)
+input double           InpTrailingStart = 15.0;       // トレーリング開始利益 (pips)
+input double           InpTrailingStep  = 8.0;        // トレーリングステップ (pips)
 
 //--- スウィングポイント構造体
 struct SwingPoint {
@@ -62,6 +68,7 @@ struct SwingPoint {
 CTrade       g_trade;
 SwingPoint   g_swings[];
 int          g_swingCount = 0;
+int          g_atrHandle  = INVALID_HANDLE;
 
 //+------------------------------------------------------------------+
 //| 初期化                                                            |
@@ -80,11 +87,22 @@ int OnInit() {
    g_trade.SetDeviationInPoints(10);
    g_trade.SetTypeFilling(ORDER_FILLING_FOK);
 
-   PrintFormat("[DowTheory EA] 起動 | Risk=%.1f%% RR=1:%.1f Pullback=%s Breakout=%s",
-               InpRiskPercent, InpRRRatio,
-               InpUsePullback ? "ON" : "OFF",
-               InpUseBreakout ? "ON" : "OFF");
+   g_atrHandle = iATR(Symbol(), PERIOD_CURRENT, InpATRPeriod);
+   if (g_atrHandle == INVALID_HANDLE) {
+      Alert("ATRインジケーターの作成に失敗しました");
+      return INIT_FAILED;
+   }
+
+   PrintFormat("[DowTheory EA] 起動 | Risk=%.1f%% RR=1:%.1f MaxSL=%.0fpips MaxHold=%dh",
+               InpRiskPercent, InpRRRatio, InpMaxSLPips, InpMaxHoldHours);
    return INIT_SUCCEEDED;
+}
+
+//+------------------------------------------------------------------+
+//| 終了処理                                                           |
+//+------------------------------------------------------------------+
+void OnDeinit(int reason) {
+   if (g_atrHandle != INVALID_HANDLE) IndicatorRelease(g_atrHandle);
 }
 
 //+------------------------------------------------------------------+
@@ -93,6 +111,7 @@ int OnInit() {
 void OnTick() {
    // ポジション管理は毎ティック実行
    ManageTrailingStop();
+   ManageTimeExit();
 
    // 新しいバーが開いた時だけシグナル判定
    static datetime s_lastBar = 0;
@@ -300,21 +319,45 @@ double GetNthSwingLow(int n) {
 }
 
 //+------------------------------------------------------------------+
+//| ATR値を取得（直前確定バー）                                        |
+//+------------------------------------------------------------------+
+double GetATR() {
+   double buf[];
+   ArraySetAsSeries(buf, true);
+   if (CopyBuffer(g_atrHandle, 0, 1, 1, buf) < 1) return 0;
+   return buf[0];
+}
+
+//+------------------------------------------------------------------+
+//| SL距離をキャップして返す                                           |
+//|   基準: ATR × InpATRSLMult と InpMaxSLPips の小さい方            |
+//+------------------------------------------------------------------+
+double CalcSLDistance(double pip) {
+   double atrDist = GetATR() * InpATRSLMult;
+   double capDist = InpMaxSLPips * pip;
+   // ATRが有効な場合はその値を使い、InpMaxSLPipsで上限を設ける
+   double dist = (atrDist > 0) ? MathMin(atrDist, capDist) : capDist;
+   return dist;
+}
+
+//+------------------------------------------------------------------+
 //| 押し目・戻り目エントリー                                           |
 //|                                                                   |
 //| 上昇: HH到達後の押し目（HHとHLの間のフィボゾーン）で買い         |
 //| 下降: LL到達後の戻り目（LHとLLの間のフィボゾーン）で売り         |
+//|                                                                   |
+//| SLはスウィングローを基準に置き、遠すぎる場合はATRキャップ適用    |
 //+------------------------------------------------------------------+
 void TryPullbackEntry(int trend) {
    double ask   = SymbolInfoDouble(Symbol(), SYMBOL_ASK);
    double bid   = SymbolInfoDouble(Symbol(), SYMBOL_BID);
-   double pip   = SymbolInfoDouble(Symbol(), SYMBOL_POINT) * 10; // 1pip = 0.01 for USDJPY
+   double pip   = SymbolInfoDouble(Symbol(), SYMBOL_POINT) * 10;
    double slBuf = InpSLBuffer * pip;
+   double slCap = CalcSLDistance(pip); // ATRキャップ後の最大SL距離
 
    if (trend == 1) {
-      // 上昇トレンド：押し目買い
-      double swHigh = GetNthSwingHigh(1); // 最新HH
-      double swLow  = GetNthSwingLow(1);  // 直前HL
+      double swHigh = GetNthSwingHigh(1);
+      double swLow  = GetNthSwingLow(1);
       if (swHigh == 0 || swLow == 0 || swHigh <= swLow) return;
 
       double range    = swHigh - swLow;
@@ -322,19 +365,21 @@ void TryPullbackEntry(int trend) {
       double zoneHigh = pbLevel + range * InpPBZoneBuffer;
       double zoneLow  = pbLevel - range * InpPBZoneBuffer;
 
-      // 現在ASK価格が押し目ゾーンにあるか
       if (ask >= zoneLow && ask <= zoneHigh) {
-         double sl  = NormalizeDouble(swLow - slBuf, Digits());
-         double tp  = NormalizeDouble(ask + (ask - sl) * InpRRRatio, Digits());
-         double lot = CalcLotSize(ask, sl);
+         // スウィングローベースのSL → キャップ超えならエントリー価格から直接計算
+         double slRaw = swLow - slBuf;
+         double sl    = (ask - slRaw > slCap)
+                        ? NormalizeDouble(ask - slCap, Digits())
+                        : NormalizeDouble(slRaw, Digits());
+         double tp    = NormalizeDouble(ask + (ask - sl) * InpRRRatio, Digits());
+         double lot   = CalcLotSize(ask, sl);
          if (lot > 0 && g_trade.Buy(lot, Symbol(), ask, sl, tp, "Dow_PB_BUY"))
             LogTrade("押し目BUY", lot, ask, sl, tp);
       }
    }
    else if (trend == -1) {
-      // 下降トレンド：戻り売り
-      double swLow  = GetNthSwingLow(1);  // 最新LL
-      double swHigh = GetNthSwingHigh(1); // 直前LH
+      double swLow  = GetNthSwingLow(1);
+      double swHigh = GetNthSwingHigh(1);
       if (swLow == 0 || swHigh == 0 || swHigh <= swLow) return;
 
       double range    = swHigh - swLow;
@@ -343,9 +388,12 @@ void TryPullbackEntry(int trend) {
       double zoneLow  = pbLevel - range * InpPBZoneBuffer;
 
       if (bid >= zoneLow && bid <= zoneHigh) {
-         double sl  = NormalizeDouble(swHigh + slBuf, Digits());
-         double tp  = NormalizeDouble(bid - (sl - bid) * InpRRRatio, Digits());
-         double lot = CalcLotSize(bid, sl);
+         double slRaw = swHigh + slBuf;
+         double sl    = (slRaw - bid > slCap)
+                        ? NormalizeDouble(bid + slCap, Digits())
+                        : NormalizeDouble(slRaw, Digits());
+         double tp    = NormalizeDouble(bid - (sl - bid) * InpRRRatio, Digits());
+         double lot   = CalcLotSize(bid, sl);
          if (lot > 0 && g_trade.Sell(lot, Symbol(), bid, sl, tp, "Dow_PB_SELL"))
             LogTrade("戻りSELL", lot, bid, sl, tp);
       }
@@ -368,18 +416,22 @@ void TryBreakoutEntry(int trend) {
    double prevClose = iClose(Symbol(), PERIOD_CURRENT, 1);
    double prevOpen  = iOpen(Symbol(),  PERIOD_CURRENT, 1);
 
+   double slCap = CalcSLDistance(pip);
+
    if (trend == 1) {
       double swHigh = GetNthSwingHigh(1);
       double swLow  = GetNthSwingLow(1);
       if (swHigh == 0 || swLow == 0) return;
 
-      // 直前バーの終値がスウィングハイ+バッファを超えてブレイク
       bool boConfirmed = (prevClose > swHigh + boBuf) &&
                          (prevOpen  <= swHigh + boBuf);
       if (boConfirmed) {
-         double sl  = NormalizeDouble(swLow - slBuf, Digits());
-         double tp  = NormalizeDouble(ask + (ask - sl) * InpRRRatio, Digits());
-         double lot = CalcLotSize(ask, sl);
+         double slRaw = swLow - slBuf;
+         double sl    = (ask - slRaw > slCap)
+                        ? NormalizeDouble(ask - slCap, Digits())
+                        : NormalizeDouble(slRaw, Digits());
+         double tp    = NormalizeDouble(ask + (ask - sl) * InpRRRatio, Digits());
+         double lot   = CalcLotSize(ask, sl);
          if (lot > 0 && g_trade.Buy(lot, Symbol(), ask, sl, tp, "Dow_BO_BUY"))
             LogTrade("ブレイクBUY", lot, ask, sl, tp);
       }
@@ -392,9 +444,12 @@ void TryBreakoutEntry(int trend) {
       bool boConfirmed = (prevClose < swLow - boBuf) &&
                          (prevOpen  >= swLow - boBuf);
       if (boConfirmed) {
-         double sl  = NormalizeDouble(swHigh + slBuf, Digits());
-         double tp  = NormalizeDouble(bid - (sl - bid) * InpRRRatio, Digits());
-         double lot = CalcLotSize(bid, sl);
+         double slRaw = swHigh + slBuf;
+         double sl    = (slRaw - bid > slCap)
+                        ? NormalizeDouble(bid + slCap, Digits())
+                        : NormalizeDouble(slRaw, Digits());
+         double tp    = NormalizeDouble(bid - (sl - bid) * InpRRRatio, Digits());
+         double lot   = CalcLotSize(bid, sl);
          if (lot > 0 && g_trade.Sell(lot, Symbol(), bid, sl, tp, "Dow_BO_SELL"))
             LogTrade("ブレイクSELL", lot, bid, sl, tp);
       }
@@ -440,6 +495,31 @@ void ManageTrailingStop() {
             if (curSL == 0 || newSL < curSL - point)
                g_trade.PositionModify(ticket, newSL, curTP);
          }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| 時間切れ強制決済                                                   |
+//| InpMaxHoldHours を超えた未決済ポジションを成行でクローズ          |
+//+------------------------------------------------------------------+
+void ManageTimeExit() {
+   if (InpMaxHoldHours <= 0) return;
+   datetime now     = TimeCurrent();
+   long     maxSecs = (long)InpMaxHoldHours * 3600;
+
+   for (int i = PositionsTotal() - 1; i >= 0; i--) {
+      ulong ticket = PositionGetTicket(i);
+      if (!PositionSelectByTicket(ticket)) continue;
+      if (PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
+      if (PositionGetString(POSITION_SYMBOL) != Symbol()) continue;
+
+      datetime openTime = (datetime)PositionGetInteger(POSITION_TIME);
+      long     holdSecs = (long)(now - openTime);
+      if (holdSecs >= maxSecs) {
+         g_trade.PositionClose(ticket);
+         PrintFormat("[時間切れ決済] %.1f時間保有 → 強制クローズ (ticket=%d)",
+                     (double)holdSecs / 3600.0, ticket);
       }
    }
 }
