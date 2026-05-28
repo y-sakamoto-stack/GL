@@ -46,11 +46,10 @@ input double           InpVolMultiplier = 1.2;        // 出来高閾値倍率 (
 input group "=== ストップロス バッファ ==="
 input double           InpSLBuffer      = 3.0;        // SL追加バッファ (pips)
 
-input group "=== 1日以内決済 (SL/TPキャップ & 時間切れ) ==="
+input group "=== SL/TPキャップ (ATRベース) ==="
 input int              InpATRPeriod     = 14;         // ATR期間
 input double           InpATRSLMult     = 1.5;        // SL幅 = ATR × この倍率
-input double           InpMaxSLPips     = 35.0;       // SL最大距離 (pips) ― ATRが大きくてもこれ以上離さない
-input int              InpMaxHoldHours  = 20;         // 最大保有時間 (時間) ― 超えたら強制決済
+input double           InpMaxSLPips     = 35.0;       // SL最大距離 (pips) ― 絶対上限
 
 input group "=== トレーリングストップ ==="
 input bool             InpUseTrailing   = true;       // トレーリングストップ使用
@@ -93,8 +92,8 @@ int OnInit() {
       return INIT_FAILED;
    }
 
-   PrintFormat("[DowTheory EA] 起動 | Risk=%.1f%% RR=1:%.1f MaxSL=%.0fpips MaxHold=%dh",
-               InpRiskPercent, InpRRRatio, InpMaxSLPips, InpMaxHoldHours);
+   PrintFormat("[DowTheory EA] 起動 | Risk=%.1f%% RR=1:%.1f MaxSL=%.0fpips ATRx%.1f",
+               InpRiskPercent, InpRRRatio, InpMaxSLPips, InpATRSLMult);
    return INIT_SUCCEEDED;
 }
 
@@ -111,7 +110,6 @@ void OnDeinit(int reason) {
 void OnTick() {
    // ポジション管理は毎ティック実行
    ManageTrailingStop();
-   ManageTimeExit();
 
    // 新しいバーが開いた時だけシグナル判定
    static datetime s_lastBar = 0;
@@ -495,31 +493,6 @@ void ManageTrailingStop() {
             if (curSL == 0 || newSL < curSL - point)
                g_trade.PositionModify(ticket, newSL, curTP);
          }
-      }
-   }
-}
-
-//+------------------------------------------------------------------+
-//| 時間切れ強制決済                                                   |
-//| InpMaxHoldHours を超えた未決済ポジションを成行でクローズ          |
-//+------------------------------------------------------------------+
-void ManageTimeExit() {
-   if (InpMaxHoldHours <= 0) return;
-   datetime now     = TimeCurrent();
-   long     maxSecs = (long)InpMaxHoldHours * 3600;
-
-   for (int i = PositionsTotal() - 1; i >= 0; i--) {
-      ulong ticket = PositionGetTicket(i);
-      if (!PositionSelectByTicket(ticket)) continue;
-      if (PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
-      if (PositionGetString(POSITION_SYMBOL) != Symbol()) continue;
-
-      datetime openTime = (datetime)PositionGetInteger(POSITION_TIME);
-      long     holdSecs = (long)(now - openTime);
-      if (holdSecs >= maxSecs) {
-         g_trade.PositionClose(ticket);
-         PrintFormat("[時間切れ決済] %.1f時間保有 → 強制クローズ (ticket=%d)",
-                     (double)holdSecs / 3600.0, ticket);
       }
    }
 }
