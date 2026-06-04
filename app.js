@@ -1,101 +1,154 @@
-const clockEl = document.getElementById('clock');
-const alarmTimeEl = document.getElementById('alarm-time');
-const setBtn = document.getElementById('set-btn');
-const cancelBtn = document.getElementById('cancel-btn');
-const statusEl = document.getElementById('alarm-status');
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const SUPABASE_URL = 'https://xwlqdeewhmakqevwgzfs.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3bHFkZWV3aG1ha3FldndnemZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NTc4MjIsImV4cCI6MjA5NjEzMzgyMn0.enHhuR1zOjzMthZju8FZkbHV0qPoJJNX7BcD_rLSPzA';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let allDeals = [];
+let editingId = null;
+
+const tbody = document.getElementById('deals-body');
 const modal = document.getElementById('modal');
-const stopBtn = document.getElementById('stop-btn');
+const form = document.getElementById('deal-form');
+const addBtn = document.getElementById('add-btn');
+const cancelBtn = document.getElementById('modal-cancel');
+const filterStatus = document.getElementById('filter-status');
+const filterPriority = document.getElementById('filter-priority');
+const filterSearch = document.getElementById('filter-search');
+const countLabel = document.getElementById('count-label');
 
-let alarmTime = null;
-let alarmFired = false;
+async function loadDeals() {
+  const { data, error } = await supabase
+    .from('deals')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-// Web Audio API でビープ音を生成（外部ファイル不要）
-let audioCtx = null;
-let beepInterval = null;
-
-function startBeep() {
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-  beepInterval = setInterval(() => {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.type = 'sine';
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.4);
-  }, 600);
-}
-
-function stopBeep() {
-  if (beepInterval) {
-    clearInterval(beepInterval);
-    beepInterval = null;
-  }
-  if (audioCtx) {
-    audioCtx.close();
-    audioCtx = null;
-  }
-}
-
-function pad(n) {
-  return String(n).padStart(2, '0');
-}
-
-function tick() {
-  const now = new Date();
-  const hh = pad(now.getHours());
-  const mm = pad(now.getMinutes());
-  const ss = pad(now.getSeconds());
-  clockEl.textContent = `${hh}:${mm}:${ss}`;
-
-  if (alarmTime && !alarmFired) {
-    const current = `${hh}:${mm}`;
-    if (current === alarmTime && now.getSeconds() === 0) {
-      triggerAlarm();
-    }
-  }
-}
-
-function triggerAlarm() {
-  alarmFired = true;
-  modal.classList.remove('hidden');
-  startBeep();
-}
-
-function dismissAlarm() {
-  modal.classList.add('hidden');
-  stopBeep();
-  alarmTime = null;
-  alarmFired = false;
-  statusEl.textContent = 'アラームなし';
-  cancelBtn.classList.add('hidden');
-}
-
-setBtn.addEventListener('click', () => {
-  const val = alarmTimeEl.value;
-  if (!val) {
-    statusEl.textContent = '時刻を選択してください';
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="9" class="error">読み込みエラー: ${error.message}</td></tr>`;
     return;
   }
-  alarmTime = val;
-  alarmFired = false;
-  statusEl.textContent = `アラームセット済み: ${val}`;
-  cancelBtn.classList.remove('hidden');
+  allDeals = data ?? [];
+  renderDeals();
+}
+
+function renderDeals() {
+  const status = filterStatus.value;
+  const priority = filterPriority.value;
+  const search = filterSearch.value.toLowerCase();
+
+  const filtered = allDeals.filter(d => {
+    if (status && d.status !== status) return false;
+    if (priority && d.priority !== priority) return false;
+    if (search && !`${d.title} ${d.company ?? ''} ${d.contact_name ?? ''} ${d.assignee ?? ''}`.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  countLabel.textContent = `${filtered.length} 件`;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">該当する商談がありません</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(d => `
+    <tr data-id="${d.id}">
+      <td class="title-cell">${esc(d.title)}</td>
+      <td>${esc(d.company ?? '')}</td>
+      <td>${esc(d.contact_name ?? '')}</td>
+      <td>${esc(d.assignee ?? '')}</td>
+      <td><span class="badge badge-${statusClass(d.status)}">${esc(d.status)}</span></td>
+      <td><span class="badge badge-priority-${(d.priority ?? '中').toLowerCase()}">${esc(d.priority ?? '中')}</span></td>
+      <td>${d.due_date ?? ''}</td>
+      <td>${d.created_at ? d.created_at.slice(0, 10) : ''}</td>
+      <td class="actions">
+        <button class="btn btn-sm edit-btn" data-id="${d.id}">編集</button>
+        <button class="btn btn-sm btn-danger delete-btn" data-id="${d.id}">削除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function esc(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function statusClass(s) {
+  return { '新規': 'new', '商談中': 'active', '見積中': 'quote', '成約': 'won', '失注': 'lost' }[s] ?? 'new';
+}
+
+function openModal(deal = null) {
+  editingId = deal?.id ?? null;
+  document.getElementById('modal-title').textContent = deal ? '商談を編集' : '商談を追加';
+  form.reset();
+  if (deal) {
+    for (const [k, v] of Object.entries(deal)) {
+      const el = form.elements[k];
+      if (el && v != null) el.value = v;
+    }
+  }
+  modal.classList.remove('hidden');
+}
+
+function closeModal() {
+  modal.classList.add('hidden');
+  editingId = null;
+}
+
+addBtn.addEventListener('click', () => openModal());
+cancelBtn.addEventListener('click', closeModal);
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(form).entries());
+  // remove empty strings
+  for (const k of Object.keys(data)) {
+    if (data[k] === '') delete data[k];
+  }
+
+  let error;
+  if (editingId) {
+    ({ error } = await supabase.from('deals').update(data).eq('id', editingId));
+  } else {
+    ({ error } = await supabase.from('deals').insert(data));
+  }
+
+  if (error) {
+    alert('保存エラー: ' + error.message);
+    return;
+  }
+  closeModal();
+  await loadDeals();
 });
 
-cancelBtn.addEventListener('click', () => {
-  alarmTime = null;
-  alarmFired = false;
-  statusEl.textContent = 'アラームなし';
-  cancelBtn.classList.add('hidden');
-  alarmTimeEl.value = '';
+tbody.addEventListener('click', async e => {
+  const id = e.target.dataset.id;
+  if (!id) return;
+
+  if (e.target.classList.contains('edit-btn')) {
+    const deal = allDeals.find(d => d.id === id);
+    if (deal) openModal(deal);
+  }
+
+  if (e.target.classList.contains('delete-btn')) {
+    if (!confirm('この商談を削除しますか？')) return;
+    const { error } = await supabase.from('deals').delete().eq('id', id);
+    if (error) { alert('削除エラー: ' + error.message); return; }
+    await loadDeals();
+  }
 });
 
-stopBtn.addEventListener('click', dismissAlarm);
+filterStatus.addEventListener('change', renderDeals);
+filterPriority.addEventListener('change', renderDeals);
+filterSearch.addEventListener('input', renderDeals);
 
-setInterval(tick, 1000);
-tick();
+// Realtime subscription
+supabase
+  .channel('deals-changes')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'deals' }, () => {
+    loadDeals();
+  })
+  .subscribe();
+
+loadDeals();

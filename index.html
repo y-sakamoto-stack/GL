@@ -3,37 +3,93 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>シンプルアラーム</title>
+  <title>商談管理</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>アラーム</h1>
+  <header class="header">
+    <h1>商談管理</h1>
+    <button id="add-btn" class="btn btn-primary">＋ 手動追加</button>
+  </header>
 
-    <div class="clock" id="clock">00:00:00</div>
-
-    <div class="alarm-set">
-      <label for="alarm-time">アラーム時刻</label>
-      <input type="time" id="alarm-time" />
-      <button id="set-btn">セット</button>
+  <div class="toolbar">
+    <div class="filters">
+      <select id="filter-status">
+        <option value="">すべてのステータス</option>
+        <option value="新規">新規</option>
+        <option value="商談中">商談中</option>
+        <option value="見積中">見積中</option>
+        <option value="成約">成約</option>
+        <option value="失注">失注</option>
+      </select>
+      <select id="filter-priority">
+        <option value="">すべての優先度</option>
+        <option value="高">高</option>
+        <option value="中">中</option>
+        <option value="低">低</option>
+      </select>
+      <input type="text" id="filter-search" placeholder="検索…" />
     </div>
-
-    <div class="alarm-status" id="alarm-status">アラームなし</div>
-
-    <button id="cancel-btn" class="cancel-btn hidden">キャンセル</button>
+    <div class="count" id="count-label">0 件</div>
   </div>
 
-  <div class="modal hidden" id="modal">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>件名</th>
+          <th>会社名</th>
+          <th>担当者</th>
+          <th>自社担当</th>
+          <th>ステータス</th>
+          <th>優先度</th>
+          <th>期日</th>
+          <th>登録日</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="deals-body">
+        <tr><td colspan="9" class="loading">読み込み中…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal" class="modal hidden">
     <div class="modal-box">
-      <p>アラームが鳴っています！</p>
-      <button id="stop-btn">止める</button>
+      <h2 id="modal-title">商談を追加</h2>
+      <form id="deal-form">
+        <label>件名 <span class="required">*</span><input type="text" name="title" required /></label>
+        <label>会社名<input type="text" name="company" /></label>
+        <label>担当者名<input type="text" name="contact_name" /></label>
+        <label>自社担当<input type="text" name="assignee" /></label>
+        <label>ステータス
+          <select name="status">
+            <option value="新規">新規</option>
+            <option value="商談中">商談中</option>
+            <option value="見積中">見積中</option>
+            <option value="成約">成約</option>
+            <option value="失注">失注</option>
+          </select>
+        </label>
+        <label>優先度
+          <select name="priority">
+            <option value="高">高</option>
+            <option value="中" selected>中</option>
+            <option value="低">低</option>
+          </select>
+        </label>
+        <label>期日<input type="date" name="due_date" /></label>
+        <label>メモ<textarea name="memo" rows="3"></textarea></label>
+        <label>元メッセージ<textarea name="original_message" rows="3"></textarea></label>
+        <div class="form-actions">
+          <button type="button" id="modal-cancel" class="btn">キャンセル</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
     </div>
   </div>
 
-  <audio id="alarm-audio" loop>
-    <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mpeg" />
-  </audio>
-
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
