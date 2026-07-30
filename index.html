@@ -3,36 +3,63 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>シンプルアラーム</title>
+  <title>お得品ファインダー</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>アラーム</h1>
+  <header class="hero">
+    <h1>お得品ファインダー</h1>
+    <p class="tagline">相場より安く売られている商品をまとめてチェック</p>
+  </header>
 
-    <div class="clock" id="clock">00:00:00</div>
+  <main class="container">
+    <section class="panel controls">
+      <div class="control-row">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="商品名やキーワードで検索（例: Switch, カメラ）"
+        />
+      </div>
 
-    <div class="alarm-set">
-      <label for="alarm-time">アラーム時刻</label>
-      <input type="time" id="alarm-time" />
-      <button id="set-btn">セット</button>
-    </div>
+      <div class="control-row sources">
+        <span class="control-label">出品元</span>
+        <div id="source-filters" class="chip-group"></div>
+      </div>
 
-    <div class="alarm-status" id="alarm-status">アラームなし</div>
+      <div class="control-row">
+        <span class="control-label">並び替え</span>
+        <select id="sort-select">
+          <option value="discount-desc">お得度が高い順</option>
+          <option value="discount-asc">お得度が低い順</option>
+          <option value="price-asc">価格が安い順</option>
+          <option value="price-desc">価格が高い順</option>
+        </select>
 
-    <button id="cancel-btn" class="cancel-btn hidden">キャンセル</button>
-  </div>
+        <label class="toggle">
+          <input type="checkbox" id="bargain-only" checked />
+          相場より安い商品のみ表示
+        </label>
+      </div>
+    </section>
 
-  <div class="modal hidden" id="modal">
-    <div class="modal-box">
-      <p>アラームが鳴っています！</p>
-      <button id="stop-btn">止める</button>
-    </div>
-  </div>
+    <section class="summary" id="summary"></section>
 
-  <audio id="alarm-audio" loop>
-    <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mpeg" />
-  </audio>
+    <section id="results" class="results"></section>
+
+    <p class="empty-state hidden" id="empty-state">
+      条件に一致する商品が見つかりませんでした。
+    </p>
+  </main>
+
+  <footer class="disclaimer">
+    <p>
+      ※ これはデモ版です。表示されている商品・価格・相場データはサンプルであり、実在の出品情報ではありません。
+      実際にインターネット上の出品を横断検索する場合は、各サイトの利用規約・robots.txt・公式APIの利用条件を確認し、
+      許可された方法（公式API等）でデータを取得する必要があります。「相場」は外部の価格比較サービスから
+      取得したデータで置き換えられる設計にしています。
+    </p>
+  </footer>
 
   <script src="app.js"></script>
 </body>
