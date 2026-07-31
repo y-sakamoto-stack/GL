@@ -62,7 +62,8 @@ body {
 }
 
 #search-input,
-#app-id-input {
+#app-id-input,
+#access-key-input {
   flex: 1;
   background: #0f1720;
   border: 1px solid #2d3a4a;
@@ -74,7 +75,8 @@ body {
 }
 
 #search-input:focus,
-#app-id-input:focus {
+#app-id-input:focus,
+#access-key-input:focus {
   border-color: #7ee787;
 }
 

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="unsafe-url" />
   <title>相場チェッカー</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -21,12 +22,21 @@
           id="app-id-input"
           placeholder="楽天ウェブサービスのアプリケーションID"
         />
+      </div>
+      <div class="control-row">
+        <span class="control-label">アクセスキー</span>
+        <input
+          type="text"
+          id="access-key-input"
+          placeholder="楽天ウェブサービスのアクセスキー"
+        />
         <button id="save-app-id-btn">保存</button>
       </div>
       <p class="hint">
         未取得の場合は
         <a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener noreferrer">楽天ウェブサービス</a>
-        で無料登録すると発行できます（楽天会員登録が必要）。IDはブラウザ内にのみ保存され、送信先は楽天のAPIのみです。
+        で無料登録すると、アプリ詳細画面に両方とも表示されます（楽天会員登録が必要）。
+        値はブラウザ内にのみ保存され、送信先は楽天のAPIのみです。
       </p>
     </section>
 

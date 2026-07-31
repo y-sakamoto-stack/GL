@@ -1,12 +1,15 @@
 // ─────────────────────────────────────────────────────────
 // データソース層: 楽天市場 商品検索API (楽天ウェブサービス)
-// https://webservice.rakuten.co.jp/api/ichibaitemsearch/
-// 無料の「アプリケーションID」が必要（利用者ご自身で取得）。
+// https://webservice.rakuten.co.jp/documentation/ichiba-item-search
+// 無料の「アプリケーションID」と「アクセスキー」が必要（利用者ご自身で取得）。
 // ブラウザから直接呼べるよう JSONP で取得する（サーバー不要）。
+// このAPIはリクエスト元ページのHTTP Referrerを要求するため、
+// file:// で直接開くと REFERRER_MISSING エラーになる場合がある。
 // ─────────────────────────────────────────────────────────
 
-const RAKUTEN_ENDPOINT = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601";
+const RAKUTEN_ENDPOINT = "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701";
 const APP_ID_STORAGE_KEY = "bargain_finder_rakuten_app_id";
+const ACCESS_KEY_STORAGE_KEY = "bargain_finder_rakuten_access_key";
 
 function rakutenJsonp(params) {
   return new Promise((resolve, reject) => {
@@ -20,6 +23,7 @@ function rakutenJsonp(params) {
 
     const script = document.createElement("script");
     script.src = `${RAKUTEN_ENDPOINT}?${query.toString()}`;
+    script.referrerPolicy = "unsafe-url";
 
     const timeoutId = setTimeout(() => {
       cleanup();
@@ -46,15 +50,20 @@ function rakutenJsonp(params) {
   });
 }
 
-async function fetchRakutenListings(keyword, appId) {
-  const data = await rakutenJsonp({ keyword, applicationId: appId, sort: "+itemPrice" });
+async function fetchRakutenListings(keyword, appId, accessKey) {
+  const data = await rakutenJsonp({ keyword, applicationId: appId, accessKey, sort: "+itemPrice" });
 
+  if (data.errors) {
+    const { errorMessage } = data.errors;
+    if (errorMessage && errorMessage.includes("REFERRER")) {
+      throw new Error(
+        "楽天APIがこのページの参照元(Referrer)情報を要求していますが、送信されませんでした。ファイルを直接ダブルクリックで開いている場合に起こることがあります。"
+      );
+    }
+    throw new Error(errorMessage || "楽天APIがエラーを返しました。");
+  }
   if (data.error) {
-    const message =
-      data.error === "wrong_parameter"
-        ? "アプリケーションIDが正しくないか、キーワードが不正です。"
-        : data.error_description || data.error;
-    throw new Error(message);
+    throw new Error(data.error_description || data.error);
   }
 
   return (data.Items || []).map((wrap) => wrap.Item).map((item, index) => ({
@@ -82,6 +91,7 @@ function average(numbers) {
 // ─────────────────────────────────────────────────────────
 
 const appIdInput = document.getElementById("app-id-input");
+const accessKeyInput = document.getElementById("access-key-input");
 const saveAppIdBtn = document.getElementById("save-app-id-btn");
 const searchInput = document.getElementById("search-input");
 const searchBtn = document.getElementById("search-btn");
@@ -111,6 +121,10 @@ function setStatus(message, kind = "info") {
 
 function getSavedAppId() {
   return localStorage.getItem(APP_ID_STORAGE_KEY) || "";
+}
+
+function getSavedAccessKey() {
+  return localStorage.getItem(ACCESS_KEY_STORAGE_KEY) || "";
 }
 
 function getFilteredSortedItems() {
@@ -198,10 +212,15 @@ function render() {
 
 async function runSearch() {
   const appId = appIdInput.value.trim();
+  const accessKey = accessKeyInput.value.trim();
   const keyword = searchInput.value.trim();
 
   if (!appId) {
     setStatus("楽天ウェブサービスのアプリケーションIDを入力してください。", "error");
+    return;
+  }
+  if (!accessKey) {
+    setStatus("楽天ウェブサービスのアクセスキーを入力してください。", "error");
     return;
   }
   if (!keyword) {
@@ -219,7 +238,7 @@ async function runSearch() {
   try {
     // 楽天の商品検索APIに新品/中古を区別する専用パラメータがないため、
     // キーワードに「中古」を加えて絞り込む（完全な保証はできない簡易的な方法）
-    const items = await fetchRakutenListings(`${keyword} 中古`, appId);
+    const items = await fetchRakutenListings(`${keyword} 中古`, appId, accessKey);
 
     if (items.length === 0) {
       allItems = [];
@@ -246,10 +265,12 @@ async function runSearch() {
 
 function init() {
   appIdInput.value = getSavedAppId();
+  accessKeyInput.value = getSavedAccessKey();
 
   saveAppIdBtn.addEventListener("click", () => {
     localStorage.setItem(APP_ID_STORAGE_KEY, appIdInput.value.trim());
-    setStatus("アプリケーションIDを保存しました。", "info");
+    localStorage.setItem(ACCESS_KEY_STORAGE_KEY, accessKeyInput.value.trim());
+    setStatus("アプリケーションID・アクセスキーを保存しました。", "info");
   });
 
   searchBtn.addEventListener("click", runSearch);
