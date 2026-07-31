@@ -60,7 +60,9 @@ async function rakutenFetch(params) {
 }
 
 async function fetchRakutenListings(keyword, appId, accessKey) {
-  const params = { keyword, applicationId: appId, accessKey, sort: "+itemPrice" };
+  // sort指定なし = 楽天標準の関連度順。価格順で絞ると「一番安い30件」しか
+  // 取得できず、相場(中央値・平均値)が実際より安く偏ってしまうため使わない。
+  const params = { keyword, applicationId: appId, accessKey };
 
   let data;
   try {
