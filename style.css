@@ -61,7 +61,8 @@ body {
   min-width: 60px;
 }
 
-#search-input {
+#search-input,
+#app-id-input {
   flex: 1;
   background: #0f1720;
   border: 1px solid #2d3a4a;
@@ -72,8 +73,54 @@ body {
   outline: none;
 }
 
-#search-input:focus {
+#search-input:focus,
+#app-id-input:focus {
   border-color: #7ee787;
+}
+
+#search-btn,
+#save-app-id-btn {
+  background: #7ee787;
+  border: none;
+  border-radius: 10px;
+  color: #0f1720;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 12px 20px;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+#search-btn:hover,
+#save-app-id-btn:hover {
+  background: #97f09f;
+}
+
+#search-btn:disabled {
+  background: #3a4a5c;
+  color: #9aa7b2;
+  cursor: not-allowed;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: #6b7885;
+  line-height: 1.6;
+}
+
+.hint a {
+  color: #7ee787;
+}
+
+.status-message {
+  font-size: 0.9rem;
+  min-height: 1.2em;
+  margin-bottom: 8px;
+}
+
+.status-message.error {
+  color: #f85149;
 }
 
 .chip-group {
@@ -153,6 +200,14 @@ body {
   border-color: #3a4a5c;
 }
 
+.item-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  background: #0f1720;
+  border-radius: 10px;
+}
+
 .card-header {
   display: flex;
   align-items: center;
@@ -193,13 +248,17 @@ body {
 
 .item-name {
   font-size: 1.05rem;
-  color: #e6edf3;
   line-height: 1.4;
 }
 
-.condition {
-  font-size: 0.8rem;
-  color: #9aa7b2;
+.item-name a {
+  color: #e6edf3;
+  text-decoration: none;
+}
+
+.item-name a:hover {
+  color: #7ee787;
+  text-decoration: underline;
 }
 
 .price-row {

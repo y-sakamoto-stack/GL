@@ -9,22 +9,35 @@
 <body>
   <header class="hero">
     <h1>お得品ファインダー</h1>
-    <p class="tagline">相場より安く売られている商品をまとめてチェック</p>
+    <p class="tagline">楽天市場の実データから、相場より安い商品を探す</p>
   </header>
 
   <main class="container">
+    <section class="panel setup">
+      <div class="control-row">
+        <span class="control-label">アプリID</span>
+        <input
+          type="text"
+          id="app-id-input"
+          placeholder="楽天ウェブサービスのアプリケーションID"
+        />
+        <button id="save-app-id-btn">保存</button>
+      </div>
+      <p class="hint">
+        未取得の場合は
+        <a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener noreferrer">楽天ウェブサービス</a>
+        で無料登録すると発行できます（楽天会員登録が必要）。IDはブラウザ内にのみ保存され、送信先は楽天のAPIのみです。
+      </p>
+    </section>
+
     <section class="panel controls">
       <div class="control-row">
         <input
           type="text"
           id="search-input"
-          placeholder="商品名やキーワードで検索（例: Switch, カメラ）"
+          placeholder="商品名やキーワードで検索（例: Nintendo Switch）"
         />
-      </div>
-
-      <div class="control-row sources">
-        <span class="control-label">出品元</span>
-        <div id="source-filters" class="chip-group"></div>
+        <button id="search-btn">検索</button>
       </div>
 
       <div class="control-row">
@@ -43,22 +56,23 @@
       </div>
     </section>
 
+    <p class="status-message" id="status-message"></p>
     <section class="summary" id="summary"></section>
 
     <section id="results" class="results"></section>
 
     <p class="empty-state hidden" id="empty-state">
-      条件に一致する商品が見つかりませんでした。
+      キーワードを入力して検索してください。
     </p>
   </main>
 
   <footer class="disclaimer">
     <p>
-      ※ これはデモ版です。表示されている商品・価格・相場データはサンプルであり、実在の出品情報ではありません。
-      実際にインターネット上の出品を横断検索する場合は、各サイトの利用規約・robots.txt・公式APIの利用条件を確認し、
-      許可された方法（公式API等）でデータを取得する必要があります。「相場」は外部の価格比較サービスから
-      取得したデータで置き換えられる設計にしています。
+      本アプリは楽天ウェブサービスを利用しています。表示される「相場」は、検索結果として取得した楽天市場の商品価格の
+      中央値をその場で計算した簡易的な目安であり、公式な市場相場を保証するものではありません。
+      価格・在庫状況は変動するため、購入前に必ず商品ページで最新情報をご確認ください。
     </p>
+    <p><a href="https://www.rakuten.co.jp/" target="_blank" rel="noopener noreferrer">Supported by 楽天市場</a></p>
   </footer>
 
   <script src="app.js"></script>
