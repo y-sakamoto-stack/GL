@@ -26,8 +26,20 @@ body {
 h1 {
   font-size: 1.4rem;
   letter-spacing: 0.1em;
-  margin-bottom: 32px;
+  margin-bottom: 8px;
   color: #a8dadc;
+}
+
+.tool-link {
+  display: block;
+  font-size: 0.8rem;
+  color: #457b9d;
+  text-decoration: none;
+  margin-bottom: 24px;
+}
+
+.tool-link:hover {
+  text-decoration: underline;
 }
 
 .clock {

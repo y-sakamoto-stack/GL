@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>eBay仕入れ商品厳選ツール</title>
+  <link rel="stylesheet" href="sourcing.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>eBay仕入れ商品厳選ツール</h1>
+      <p class="sub">Amazon仕入れ → eBay販売 の利益率・ROIを計算し、仕入れ可否を判定します</p>
+      <a class="back-link" href="index.html">← アラームアプリに戻る</a>
+    </header>
+
+    <section class="api-status">
+      <div class="api-status-row">
+        <span class="badge badge-off">API未接続</span>
+        <p>
+          Amazon（Keepa API）/ eBay APIのキーは未設定です。現在は<strong>手動入力モード</strong>で計算します。
+          APIキーを取得後、<code>sourcing.js</code> 内の <code>fetchFromKeepa()</code> / <code>fetchFromEbay()</code>
+          を実装すると自動取得に切り替えられます。
+        </p>
+      </div>
+    </section>
+
+    <section class="settings">
+      <h2>計算設定</h2>
+      <div class="settings-grid">
+        <label>
+          為替レート（USD→JPY）
+          <input type="number" id="set-fx" step="0.01" value="150" />
+        </label>
+        <label>
+          eBay落札手数料（%）
+          <input type="number" id="set-ebay-fee" step="0.01" value="13.25" />
+        </label>
+        <label>
+          決済手数料（%）
+          <input type="number" id="set-pay-fee" step="0.01" value="4" />
+        </label>
+        <label>
+          関税・消費税想定（%）
+          <input type="number" id="set-duty" step="0.1" value="0" />
+        </label>
+        <label>
+          送料 基本料金（円）
+          <input type="number" id="set-ship-base" step="1" value="1500" />
+        </label>
+        <label>
+          送料 1gあたり（円）
+          <input type="number" id="set-ship-per-g" step="0.1" value="1.2" />
+        </label>
+        <label>
+          推奨ライン：利益率（%）
+          <input type="number" id="set-th-margin" step="0.1" value="20" />
+        </label>
+        <label>
+          推奨ライン：ROI（%）
+          <input type="number" id="set-th-roi" step="0.1" value="30" />
+        </label>
+      </div>
+    </section>
+
+    <section class="add-product">
+      <h2>商品を追加</h2>
+      <form id="product-form" class="product-form">
+        <label class="grow">
+          商品名
+          <input type="text" id="in-name" required placeholder="例）〇〇フィギュア" />
+        </label>
+        <label>
+          Amazon仕入れ値（円）
+          <input type="number" id="in-cost" step="1" min="0" required />
+        </label>
+        <label>
+          eBay想定売値（USD）
+          <input type="number" id="in-price-usd" step="0.01" min="0" required />
+        </label>
+        <label>
+          重量（g）
+          <input type="number" id="in-weight" step="1" min="0" required />
+        </label>
+        <label>
+          送料（円）
+          <span class="inline-input">
+            <input type="number" id="in-shipping" step="1" min="0" />
+            <button type="button" id="btn-estimate-shipping">重量から概算</button>
+          </span>
+        </label>
+        <button type="submit" class="add-btn">追加</button>
+      </form>
+    </section>
+
+    <section class="results">
+      <div class="results-header">
+        <h2>判定結果</h2>
+        <label class="filter">
+          <input type="checkbox" id="filter-recommend-only" />
+          推奨のみ表示
+        </label>
+      </div>
+      <div class="table-scroll">
+        <table id="result-table">
+          <thead>
+            <tr>
+              <th>商品名</th>
+              <th>仕入れ値(円)</th>
+              <th>売値(USD)</th>
+              <th>売上(円)</th>
+              <th>手数料(円)</th>
+              <th>送料(円)</th>
+              <th>関税等(円)</th>
+              <th>総コスト(円)</th>
+              <th>利益(円)</th>
+              <th>利益率</th>
+              <th>ROI</th>
+              <th>判定</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="result-body"></tbody>
+        </table>
+      </div>
+      <p class="empty-msg" id="empty-msg">まだ商品が登録されていません。上のフォームから追加してください。</p>
+    </section>
+  </div>
+
+  <script src="sourcing.js"></script>
+</body>
+</html>
