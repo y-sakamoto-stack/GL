@@ -86,14 +86,26 @@ async function fetchRakutenListings(keyword, appId, accessKey) {
     throw new Error(data.error_description || data.error);
   }
 
-  return (data.Items || []).map((wrap) => wrap.Item).map((item, index) => ({
-    id: item.itemCode || `${index}`,
-    name: item.itemName,
-    shop: item.shopName,
-    price: item.itemPrice,
-    url: item.itemUrl,
-    image: item.mediumImageUrls && item.mediumImageUrls[0] ? item.mediumImageUrls[0].imageUrl : "",
-  }));
+  // 楽天の検索は単語ごとのゆるい一致になりやすく、商品名の別々の場所に
+  // 単語が散らばっているだけの無関係な商品も返ってくることがある。
+  // そのため商品名に検索語がすべて含まれているものだけに絞り込む。
+  return (data.Items || [])
+    .map((wrap) => wrap.Item)
+    .filter((item) => matchesAllTerms(item.itemName, keyword))
+    .map((item, index) => ({
+      id: item.itemCode || `${index}`,
+      name: item.itemName,
+      shop: item.shopName,
+      price: item.itemPrice,
+      url: item.itemUrl,
+      image: item.mediumImageUrls && item.mediumImageUrls[0] ? item.mediumImageUrls[0].imageUrl : "",
+    }));
+}
+
+function matchesAllTerms(name, keyword) {
+  const terms = keyword.split(/\s+/).filter(Boolean).map((t) => t.toLowerCase());
+  const lowerName = (name || "").toLowerCase();
+  return terms.every((term) => lowerName.includes(term));
 }
 
 function median(numbers) {
