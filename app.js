@@ -27,7 +27,7 @@ function rakutenJsonp(params) {
 
     const timeoutId = setTimeout(() => {
       cleanup();
-      reject(new Error("タイムアウトしました。通信環境を確認して再度お試しください。"));
+      reject(new Error("タイムアウトしました（JSONP）。通信環境を確認して再度お試しください。"));
     }, 10000);
 
     function cleanup() {
@@ -43,21 +43,39 @@ function rakutenJsonp(params) {
 
     script.onerror = () => {
       cleanup();
-      reject(new Error("楽天市場APIへの接続に失敗しました。"));
+      reject(new Error("JSONP読み込みに失敗しました（詳細不明。ブラウザがスクリプトの読み込みを拒否しました）。"));
     };
 
     document.body.appendChild(script);
   });
 }
 
+async function rakutenFetch(params) {
+  const query = new URLSearchParams({ format: "json", hits: "30", ...params });
+  const response = await fetch(`${RAKUTEN_ENDPOINT}?${query.toString()}`, {
+    method: "GET",
+    referrerPolicy: "unsafe-url",
+  });
+  return response.json();
+}
+
 async function fetchRakutenListings(keyword, appId, accessKey) {
-  const data = await rakutenJsonp({ keyword, applicationId: appId, accessKey, sort: "+itemPrice" });
+  const params = { keyword, applicationId: appId, accessKey, sort: "+itemPrice" };
+
+  let data;
+  try {
+    // まず fetch を試す（CORSに対応していれば、失敗時も実際のエラー内容が読める）
+    data = await rakutenFetch(params);
+  } catch (fetchErr) {
+    // fetchがCORS等でブロックされた場合は JSONP にフォールバック
+    data = await rakutenJsonp(params);
+  }
 
   if (data.errors) {
     const { errorMessage } = data.errors;
     if (errorMessage && errorMessage.includes("REFERRER")) {
       throw new Error(
-        "楽天APIがこのページの参照元(Referrer)情報を要求していますが、送信されませんでした。ファイルを直接ダブルクリックで開いている場合に起こることがあります。"
+        `楽天APIが参照元(Referrer)情報を要求していますが、送信されませんでした（${errorMessage}）。file:// で直接開いている場合はローカルサーバー経由で開いてください。`
       );
     }
     throw new Error(errorMessage || "楽天APIがエラーを返しました。");
