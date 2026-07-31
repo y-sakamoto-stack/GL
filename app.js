@@ -89,9 +89,12 @@ async function fetchRakutenListings(keyword, appId, accessKey) {
   // 楽天の検索は単語ごとのゆるい一致になりやすく、商品名の別々の場所に
   // 単語が散らばっているだけの無関係な商品も返ってくることがある。
   // そのため商品名に検索語がすべて含まれているものだけに絞り込む。
+  // さらに、本体名を含んだアクセサリー（ケース等）が大量に紛れ込むため、
+  // ユーザーが明示的に検索していないアクセサリー系の単語を含む商品を除外する。
   return (data.Items || [])
     .map((wrap) => wrap.Item)
     .filter((item) => matchesAllTerms(item.itemName, keyword))
+    .filter((item) => !isLikelyAccessory(item.itemName, keyword))
     .map((item, index) => ({
       id: item.itemCode || `${index}`,
       name: item.itemName,
@@ -106,6 +109,22 @@ function matchesAllTerms(name, keyword) {
   const terms = keyword.split(/\s+/).filter(Boolean).map((t) => t.toLowerCase());
   const lowerName = (name || "").toLowerCase();
   return terms.every((term) => lowerName.includes(term));
+}
+
+const ACCESSORY_KEYWORDS = [
+  "ケース", "カバー", "フィルム", "保護シート", "保護シール", "収納",
+  "ポーチ", "ストラップ", "スタンド", "ステッカー", "シール", "グリップ",
+  "互換", "交換用", "タッチペン", "アクセサリー",
+];
+
+function isLikelyAccessory(name, keyword) {
+  const lowerName = (name || "").toLowerCase();
+  const lowerKeyword = keyword.toLowerCase();
+  return ACCESSORY_KEYWORDS.some((word) => {
+    const lowerWord = word.toLowerCase();
+    if (lowerKeyword.includes(lowerWord)) return false; // ユーザーがその単語自体を検索している場合は除外しない
+    return lowerName.includes(lowerWord);
+  });
 }
 
 function median(numbers) {
