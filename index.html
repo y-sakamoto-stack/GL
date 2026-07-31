@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>お得品ファインダー</title>
+  <title>相場チェッカー</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="hero">
-    <h1>お得品ファインダー</h1>
-    <p class="tagline">楽天市場の実データから、相場より安い商品を探す</p>
+    <h1>相場チェッカー</h1>
+    <p class="tagline">商品名を入力すると、楽天市場の中古品の実データから相場を調べます</p>
   </header>
 
   <main class="container">
@@ -35,7 +35,7 @@
         <input
           type="text"
           id="search-input"
-          placeholder="商品名やキーワードで検索（例: Nintendo Switch）"
+          placeholder="商品名やキーワードで検索（例: Nintendo Switch）※自動的に「中古」で絞り込みます"
         />
         <button id="search-btn">検索</button>
       </div>
@@ -57,6 +57,30 @@
     </section>
 
     <p class="status-message" id="status-message"></p>
+
+    <section class="market-summary hidden" id="market-summary">
+      <div class="stat-card">
+        <span class="stat-label">相場（中央値）</span>
+        <span class="stat-value" id="stat-median">-</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">平均値</span>
+        <span class="stat-value" id="stat-average">-</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">最安値</span>
+        <span class="stat-value" id="stat-min">-</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">最高値</span>
+        <span class="stat-value" id="stat-max">-</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">サンプル件数</span>
+        <span class="stat-value" id="stat-count">-</span>
+      </div>
+    </section>
+
     <section class="summary" id="summary"></section>
 
     <section id="results" class="results"></section>
@@ -68,8 +92,10 @@
 
   <footer class="disclaimer">
     <p>
-      本アプリは楽天ウェブサービスを利用しています。表示される「相場」は、検索結果として取得した楽天市場の商品価格の
-      中央値をその場で計算した簡易的な目安であり、公式な市場相場を保証するものではありません。
+      本アプリは楽天ウェブサービスを利用しています。表示される「相場」は、検索キーワードに「中古」を加えて取得した
+      楽天市場の商品価格（最大30件）から、その場で計算した中央値・平均値などの簡易的な目安です。
+      楽天のAPIには新品/中古を確実に区別する仕組みがないため、キーワード検索による絞り込みであり、
+      新品が混ざる場合があります。公式な市場相場や楽天市場以外の価格を反映したものでもありません。
       価格・在庫状況は変動するため、購入前に必ず商品ページで最新情報をご確認ください。
     </p>
     <p><a href="https://www.rakuten.co.jp/" target="_blank" rel="noopener noreferrer">Supported by 楽天市場</a></p>

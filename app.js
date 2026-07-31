@@ -73,6 +73,10 @@ function median(numbers) {
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+function average(numbers) {
+  return numbers.reduce((sum, n) => sum + n, 0) / numbers.length;
+}
+
 // ─────────────────────────────────────────────────────────
 // アプリケーションロジック
 // ─────────────────────────────────────────────────────────
@@ -87,6 +91,12 @@ const resultsEl = document.getElementById("results");
 const summaryEl = document.getElementById("summary");
 const emptyStateEl = document.getElementById("empty-state");
 const statusEl = document.getElementById("status-message");
+const marketSummaryEl = document.getElementById("market-summary");
+const statMedianEl = document.getElementById("stat-median");
+const statAverageEl = document.getElementById("stat-average");
+const statMinEl = document.getElementById("stat-min");
+const statMaxEl = document.getElementById("stat-max");
+const statCountEl = document.getElementById("stat-count");
 
 let allItems = [];
 
@@ -165,8 +175,23 @@ function renderResults(items) {
   });
 }
 
+function renderMarketSummary(items) {
+  if (items.length === 0) {
+    marketSummaryEl.classList.add("hidden");
+    return;
+  }
+  const prices = items.map((i) => i.price);
+  statMedianEl.textContent = formatYen(Math.round(median(prices)));
+  statAverageEl.textContent = formatYen(Math.round(average(prices)));
+  statMinEl.textContent = formatYen(Math.min(...prices));
+  statMaxEl.textContent = formatYen(Math.max(...prices));
+  statCountEl.textContent = `${items.length} 件`;
+  marketSummaryEl.classList.remove("hidden");
+}
+
 function render() {
   const items = getFilteredSortedItems();
+  renderMarketSummary(allItems);
   renderSummary(items);
   renderResults(items);
 }
@@ -189,9 +214,12 @@ async function runSearch() {
   resultsEl.innerHTML = "";
   summaryEl.textContent = "";
   emptyStateEl.classList.add("hidden");
+  marketSummaryEl.classList.add("hidden");
 
   try {
-    const items = await fetchRakutenListings(keyword, appId);
+    // 楽天の商品検索APIに新品/中古を区別する専用パラメータがないため、
+    // キーワードに「中古」を加えて絞り込む（完全な保証はできない簡易的な方法）
+    const items = await fetchRakutenListings(`${keyword} 中古`, appId);
 
     if (items.length === 0) {
       allItems = [];
