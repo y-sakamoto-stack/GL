@@ -42,14 +42,20 @@ function saveProducts(products) {
   localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
 }
 
-// --- 将来のAPI連携用スタブ ---
-// APIキー取得後、実際のKeepa API / eBay APIの呼び出しに置き換える
+// --- Amazon側は未実装のスタブ ---
+// Keepa APIキー取得後、実際の呼び出しに置き換える
 async function fetchFromKeepa(asinOrUrl) {
   throw new Error('Keepa APIは未接続です。設定後にこの関数を実装してください。');
 }
 
+// --- eBay側: /api/ebay-price（サーバーレス関数）経由でBrowse APIから相場を取得 ---
 async function fetchFromEbay(keyword) {
-  throw new Error('eBay APIは未接続です。設定後にこの関数を実装してください。');
+  const res = await fetch(`/api/ebay-price?q=${encodeURIComponent(keyword)}`);
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || `取得に失敗しました (${res.status})`);
+  }
+  return data;
 }
 
 function estimateShipping(weightG, settings) {
@@ -163,6 +169,40 @@ document.getElementById('product-form').addEventListener('submit', (e) => {
 document.getElementById('btn-estimate-shipping').addEventListener('click', () => {
   const weight = Number(document.getElementById('in-weight').value) || 0;
   document.getElementById('in-shipping').value = estimateShipping(weight, getSettings());
+});
+
+document.getElementById('btn-fetch-ebay').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-fetch-ebay');
+  const note = document.getElementById('fetch-note');
+  const keyword = document.getElementById('in-name').value.trim();
+
+  if (!keyword) {
+    note.textContent = '先に商品名を入力してください（検索キーワードとして使用します）';
+    note.classList.add('error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '取得中…';
+  note.classList.remove('error');
+  note.textContent = '';
+
+  try {
+    const data = await fetchFromEbay(keyword);
+    if (!data.count) {
+      note.textContent = `該当する出品が見つかりませんでした（検索語: ${keyword}）`;
+      note.classList.add('error');
+    } else {
+      document.getElementById('in-price-usd').value = data.median;
+      note.textContent = `eBay出品${data.count}件の中央値 $${data.median}（平均$${data.average} / $${data.min}〜$${data.max}）`;
+    }
+  } catch (err) {
+    note.textContent = err.message;
+    note.classList.add('error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '自動取得';
+  }
 });
 
 document.getElementById('filter-recommend-only').addEventListener('change', render);

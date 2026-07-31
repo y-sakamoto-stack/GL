@@ -129,6 +129,10 @@ h2 {
   align-items: end;
 }
 
+.product-form label {
+  min-width: 0;
+}
+
 .product-form label.grow {
   grid-column: span 2;
 }
@@ -136,10 +140,12 @@ h2 {
 .inline-input {
   display: flex;
   gap: 6px;
+  min-width: 0;
 }
 
 .inline-input input {
   flex: 1;
+  min-width: 0;
 }
 
 .inline-input button {
@@ -155,6 +161,21 @@ h2 {
 
 .inline-input button:hover {
   background: #1d6a96;
+}
+
+.inline-input button:disabled {
+  background: #2c3e57;
+  cursor: wait;
+}
+
+.fetch-note {
+  font-size: 0.72rem;
+  color: #a8dadc;
+  min-height: 1.1em;
+}
+
+.fetch-note.error {
+  color: #e63946;
 }
 
 .add-btn {
