@@ -26,6 +26,7 @@
           Amazon仕入れ値も同様に <code>/api/amazon-price</code> 経由でKeepa APIから自動取得できます。
           <a href="https://keepa.com/#!api" target="_blank" rel="noopener">keepa.com</a>
           でAPIキーを取得し、<code>KEEPA_API_KEY</code>（Secret種別）を設定してください。
+          手数料はeBayカテゴリ選択、送料は重量帯別テーブルからそれぞれ自動計算されます（どちらもライブAPIではなく、公開されている標準料率・料金表を組み込んだものです。実際の値は変わるため定期的な確認・編集を推奨します）。
         </p>
       </div>
     </section>
@@ -38,24 +39,12 @@
           <input type="number" id="set-fx" step="0.01" value="150" />
         </label>
         <label>
-          eBay落札手数料（%）
-          <input type="number" id="set-ebay-fee" step="0.01" value="13.25" />
-        </label>
-        <label>
           決済手数料（%）
           <input type="number" id="set-pay-fee" step="0.01" value="4" />
         </label>
         <label>
           関税・消費税想定（%）
           <input type="number" id="set-duty" step="0.1" value="0" />
-        </label>
-        <label>
-          送料 基本料金（円）
-          <input type="number" id="set-ship-base" step="1" value="1500" />
-        </label>
-        <label>
-          送料 1gあたり（円）
-          <input type="number" id="set-ship-per-g" step="0.1" value="1.2" />
         </label>
         <label>
           推奨ライン：利益率（%）
@@ -65,6 +54,17 @@
           推奨ライン：ROI（%）
           <input type="number" id="set-th-roi" step="0.1" value="30" />
         </label>
+      </div>
+
+      <div class="ship-tiers">
+        <h3>送料テーブル（重量帯別・目安）</h3>
+        <p class="note">
+          目安の参考値です。実際の料金は発送方法・配送先国・時期によって異なるため、
+          <a href="https://www.post.japanpost.jp/int/charge/list/ems_all.html" target="_blank" rel="noopener">日本郵便の料金表</a>
+          等で確認のうえ、必要に応じて下の数値を編集してください。
+        </p>
+        <div id="ship-tiers-list"></div>
+        <button type="button" id="btn-add-tier" class="btn-add-tier">行を追加</button>
       </div>
     </section>
 
@@ -86,6 +86,10 @@
         <label>
           Amazon仕入れ値（円）
           <input type="number" id="in-cost" step="1" min="0" required />
+        </label>
+        <label>
+          eBayカテゴリ（手数料率）
+          <select id="in-category"></select>
         </label>
         <label>
           eBay想定売値（USD）
@@ -123,6 +127,7 @@
           <thead>
             <tr>
               <th>商品名</th>
+              <th>カテゴリ</th>
               <th>仕入れ値(円)</th>
               <th>売値(USD)</th>
               <th>売上(円)</th>

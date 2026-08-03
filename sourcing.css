@@ -97,6 +97,88 @@ h2 {
   gap: 16px;
 }
 
+.ship-tiers {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #0f3460;
+}
+
+.ship-tiers h3 {
+  font-size: 0.95rem;
+  color: #a8dadc;
+  margin-bottom: 8px;
+}
+
+.note {
+  font-size: 0.78rem;
+  color: #8fa3ae;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.note a {
+  color: #457b9d;
+}
+
+#ship-tiers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tier-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #cfcfcf;
+}
+
+.tier-row input {
+  background: #0f3460;
+  border: 1px solid #457b9d;
+  border-radius: 8px;
+  color: #eaeaea;
+  font-size: 0.9rem;
+  padding: 6px 8px;
+  width: 100px;
+  outline: none;
+}
+
+.tier-row input:focus {
+  border-color: #a8dadc;
+}
+
+.tier-del {
+  background: transparent;
+  border: 1px solid #e63946;
+  color: #e63946;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.tier-del:hover {
+  background: #e63946;
+  color: #fff;
+}
+
+.btn-add-tier {
+  background: #457b9d;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.8rem;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.btn-add-tier:hover {
+  background: #1d6a96;
+}
+
 .settings-grid label,
 .product-form label {
   display: flex;
@@ -107,7 +189,8 @@ h2 {
 }
 
 .settings-grid input,
-.product-form input {
+.product-form input,
+.product-form select {
   background: #0f3460;
   border: 1px solid #457b9d;
   border-radius: 8px;
@@ -118,7 +201,8 @@ h2 {
 }
 
 .settings-grid input:focus,
-.product-form input:focus {
+.product-form input:focus,
+.product-form select:focus {
   border-color: #a8dadc;
 }
 

@@ -1,9 +1,31 @@
 const SETTINGS_KEY = 'sedori_settings_v1';
 const PRODUCTS_KEY = 'sedori_products_v1';
+const SHIP_TIERS_KEY = 'sedori_ship_tiers_v1';
 
 const settingIds = [
-  'set-fx', 'set-ebay-fee', 'set-pay-fee', 'set-duty',
-  'set-ship-base', 'set-ship-per-g', 'set-th-margin', 'set-th-roi',
+  'set-fx', 'set-pay-fee', 'set-duty', 'set-th-margin', 'set-th-roi',
+];
+
+// eBayの標準的な落札手数料（Final Value Fee）率。ライブAPIではなく、
+// eBayが公開している料率表のスナップショットです。料率は変更されることがあるため、
+// https://www.ebay.com/help/selling/fees-credits-invoices/selling-fees で定期的に確認してください。
+const EBAY_FEE_CATEGORIES = {
+  standard: { label: '標準（家電・おもちゃ・ホビー・コレクティブルズ等）', rate: 13.25, secondaryRate: 2.35, threshold: 7500 },
+  jewelry_watches: { label: 'ジュエリー・腕時計', rate: 15, secondaryRate: 9, threshold: 5000 },
+  guitars: { label: '楽器（ギター・ベース）', rate: 6.35, secondaryRate: 2.35, threshold: 7500 },
+};
+
+// 送料テーブルの初期値（目安の参考値）。実際の料金は発送方法・配送先国・時期によって
+// 異なるため、設定画面から編集してください。
+const DEFAULT_SHIP_TIERS = [
+  { maxG: 500, priceJpy: 2200 },
+  { maxG: 1000, priceJpy: 3000 },
+  { maxG: 1500, priceJpy: 3700 },
+  { maxG: 2000, priceJpy: 4400 },
+  { maxG: 3000, priceJpy: 5700 },
+  { maxG: 5000, priceJpy: 8300 },
+  { maxG: 10000, priceJpy: 14300 },
+  { maxG: 20000, priceJpy: 24300 },
 ];
 
 function loadSettings() {
@@ -24,11 +46,8 @@ function saveSettings() {
 function getSettings() {
   return {
     fx: Number(document.getElementById('set-fx').value) || 0,
-    ebayFeePct: Number(document.getElementById('set-ebay-fee').value) || 0,
     payFeePct: Number(document.getElementById('set-pay-fee').value) || 0,
     dutyPct: Number(document.getElementById('set-duty').value) || 0,
-    shipBase: Number(document.getElementById('set-ship-base').value) || 0,
-    shipPerG: Number(document.getElementById('set-ship-per-g').value) || 0,
     thMargin: Number(document.getElementById('set-th-margin').value) || 0,
     thRoi: Number(document.getElementById('set-th-roi').value) || 0,
   };
@@ -40,6 +59,63 @@ function loadProducts() {
 
 function saveProducts(products) {
   localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
+}
+
+function loadShipTiers() {
+  const saved = JSON.parse(localStorage.getItem(SHIP_TIERS_KEY) || 'null');
+  return saved || DEFAULT_SHIP_TIERS.map((t) => ({ ...t }));
+}
+
+function saveShipTiers(tiers) {
+  localStorage.setItem(SHIP_TIERS_KEY, JSON.stringify(tiers));
+}
+
+function populateCategorySelect() {
+  const select = document.getElementById('in-category');
+  select.innerHTML = '';
+  Object.entries(EBAY_FEE_CATEGORIES).forEach(([key, cat]) => {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = `${cat.label}（${cat.rate}%）`;
+    select.appendChild(option);
+  });
+}
+
+function renderShipTiers() {
+  const tiers = loadShipTiers();
+  const list = document.getElementById('ship-tiers-list');
+  list.innerHTML = '';
+
+  tiers.forEach((tier, idx) => {
+    const row = document.createElement('div');
+    row.className = 'tier-row';
+    row.innerHTML = `
+      〜<input type="number" class="tier-maxg" value="${tier.maxG}" min="1" /> g :
+      ¥<input type="number" class="tier-price" value="${tier.priceJpy}" min="0" />
+      <button type="button" class="tier-del">削除</button>
+    `;
+
+    row.querySelector('.tier-maxg').addEventListener('input', (e) => {
+      const next = loadShipTiers();
+      next[idx].maxG = Number(e.target.value) || 0;
+      saveShipTiers(next);
+      render();
+    });
+    row.querySelector('.tier-price').addEventListener('input', (e) => {
+      const next = loadShipTiers();
+      next[idx].priceJpy = Number(e.target.value) || 0;
+      saveShipTiers(next);
+      render();
+    });
+    row.querySelector('.tier-del').addEventListener('click', () => {
+      const next = loadShipTiers().filter((_, i) => i !== idx);
+      saveShipTiers(next);
+      renderShipTiers();
+      render();
+    });
+
+    list.appendChild(row);
+  });
 }
 
 // --- Amazon側: /api/amazon-price（Worker）経由でKeepa APIから現在価格を取得 ---
@@ -70,13 +146,24 @@ async function fetchFromEbay(keyword) {
   return data;
 }
 
-function estimateShipping(weightG, settings) {
-  return Math.round(settings.shipBase + settings.shipPerG * weightG);
+function estimateShipping(weightG, tiers) {
+  const sorted = [...tiers].sort((a, b) => a.maxG - b.maxG);
+  const hit = sorted.find((tier) => weightG <= tier.maxG);
+  if (hit) return hit.priceJpy;
+  return sorted.length ? sorted[sorted.length - 1].priceJpy : 0;
+}
+
+function computeEbayFeeUsd(priceUsd, categoryKey) {
+  const cat = EBAY_FEE_CATEGORIES[categoryKey] || EBAY_FEE_CATEGORIES.standard;
+  if (priceUsd <= cat.threshold) return priceUsd * (cat.rate / 100);
+  return cat.threshold * (cat.rate / 100) + (priceUsd - cat.threshold) * (cat.secondaryRate / 100);
 }
 
 function evaluateProduct(product, settings) {
   const revenueJpy = product.priceUsd * settings.fx;
-  const feeJpy = revenueJpy * ((settings.ebayFeePct + settings.payFeePct) / 100);
+  const ebayFeeJpy = computeEbayFeeUsd(product.priceUsd, product.category) * settings.fx;
+  const payFeeJpy = revenueJpy * (settings.payFeePct / 100);
+  const feeJpy = ebayFeeJpy + payFeeJpy;
   const dutyJpy = revenueJpy * (settings.dutyPct / 100);
   const shippingJpy = product.shipping;
   const totalCostJpy = product.cost + feeJpy + dutyJpy + shippingJpy;
@@ -125,8 +212,10 @@ function render() {
 
   visible.forEach(({ product, result }) => {
     const tr = document.createElement('tr');
+    const categoryLabel = (EBAY_FEE_CATEGORIES[product.category] || EBAY_FEE_CATEGORIES.standard).label;
     tr.innerHTML = `
       <td>${escapeHtml(product.name)}</td>
+      <td>${escapeHtml(categoryLabel)}</td>
       <td>${formatJpy(product.cost)}</td>
       <td>${product.priceUsd.toFixed(2)}</td>
       <td>${formatJpy(result.revenueJpy)}</td>
@@ -165,6 +254,7 @@ document.getElementById('product-form').addEventListener('submit', (e) => {
     id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
     name: document.getElementById('in-name').value.trim(),
     cost: Number(document.getElementById('in-cost').value) || 0,
+    category: document.getElementById('in-category').value,
     priceUsd: Number(document.getElementById('in-price-usd').value) || 0,
     weight: Number(document.getElementById('in-weight').value) || 0,
     shipping: Number(document.getElementById('in-shipping').value) || 0,
@@ -180,7 +270,15 @@ document.getElementById('product-form').addEventListener('submit', (e) => {
 
 document.getElementById('btn-estimate-shipping').addEventListener('click', () => {
   const weight = Number(document.getElementById('in-weight').value) || 0;
-  document.getElementById('in-shipping').value = estimateShipping(weight, getSettings());
+  document.getElementById('in-shipping').value = estimateShipping(weight, loadShipTiers());
+});
+
+document.getElementById('btn-add-tier').addEventListener('click', () => {
+  const tiers = loadShipTiers();
+  const last = tiers[tiers.length - 1];
+  tiers.push({ maxG: last ? last.maxG + 1000 : 1000, priceJpy: last ? last.priceJpy + 1000 : 1000 });
+  saveShipTiers(tiers);
+  renderShipTiers();
 });
 
 document.getElementById('btn-fetch-ebay').addEventListener('click', async () => {
@@ -259,5 +357,7 @@ settingIds.forEach((id) => {
   });
 });
 
+populateCategorySelect();
+renderShipTiers();
 loadSettings();
 render();
