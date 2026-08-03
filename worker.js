@@ -1,8 +1,9 @@
 // Cloudflare Worker entry point (deployed via `wrangler deploy`).
 // Serves the static site (index.html / sourcing.html / *.js / *.css) from
-// the assets binding, and handles /api/ebay-price itself so the eBay Client
-// Secret never reaches the browser. Set EBAY_CLIENT_ID / EBAY_CLIENT_SECRET
-// as Worker Variables and Secrets (Settings → Variables and Secrets).
+// the assets binding, and handles /api/ebay-price and /api/amazon-price
+// itself so the eBay/Keepa credentials never reach the browser. Set
+// EBAY_CLIENT_ID / EBAY_CLIENT_SECRET / KEEPA_API_KEY as Worker
+// Variables and Secrets (Settings → Variables and Secrets).
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
 
@@ -112,11 +113,67 @@ async function handleEbayPrice(request, env) {
   }
 }
 
+// Keepa domain id: 5 = Amazon.co.jp (override with env.KEEPA_DOMAIN for other marketplaces).
+// https://keepa.com/#!discuss/t/product-object/116 — stats.current index 0 = Amazon price, 1 = new (3rd party) price.
+// JPY has no minor currency unit, so unlike USD/EUR the value from Keepa is not divided by 100.
+async function handleAmazonPrice(request, env) {
+  const url = new URL(request.url);
+  const asin = (url.searchParams.get('asin') || '').trim().toUpperCase();
+
+  if (!asin) {
+    return json({ error: 'クエリパラメータ asin が必要です' }, 400);
+  }
+
+  const apiKey = env.KEEPA_API_KEY;
+  if (!apiKey) {
+    return json({ error: 'KEEPA_API_KEY が設定されていません（WorkerのSettings → Variables and Secretsを確認してください）' }, 500);
+  }
+
+  try {
+    const domain = env.KEEPA_DOMAIN || '5';
+    const params = new URLSearchParams({ key: apiKey, domain, asin, stats: '1', history: '0' });
+    const res = await fetch(`https://api.keepa.com/product?${params}`);
+
+    if (!res.ok) {
+      const text = await res.text();
+      return json({ error: `Keepa APIエラー (${res.status}): ${text}` }, res.status);
+    }
+
+    const data = await res.json();
+    const product = (data.products || [])[0];
+    if (!product) {
+      return json({ error: `該当するASINの商品が見つかりませんでした（ASIN: ${asin}）` }, 404);
+    }
+
+    const current = (product.stats && product.stats.current) || [];
+    const amazonPrice = current[0];
+    const newPrice = current[1];
+    const raw = amazonPrice > 0 ? amazonPrice : newPrice;
+
+    if (!raw || raw <= 0) {
+      return json({ error: '現在の価格データが取得できませんでした（在庫切れの可能性があります）' }, 200);
+    }
+
+    return json({
+      asin,
+      title: product.title,
+      priceJpy: raw,
+      source: amazonPrice > 0 ? 'amazon' : 'marketplace',
+      note: 'Keepa APIから取得した現在価格です。在庫状況によって変動します。',
+    });
+  } catch (err) {
+    return json({ error: err.message }, 500);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/ebay-price') {
       return handleEbayPrice(request, env);
+    }
+    if (url.pathname === '/api/amazon-price') {
+      return handleAmazonPrice(request, env);
     }
     return env.ASSETS.fetch(request);
   },

@@ -42,13 +42,25 @@ function saveProducts(products) {
   localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
 }
 
-// --- Amazon側は未実装のスタブ ---
-// Keepa APIキー取得後、実際の呼び出しに置き換える
-async function fetchFromKeepa(asinOrUrl) {
-  throw new Error('Keepa APIは未接続です。設定後にこの関数を実装してください。');
+// --- Amazon側: /api/amazon-price（Worker）経由でKeepa APIから現在価格を取得 ---
+function extractAsin(input) {
+  const trimmed = input.trim();
+  const urlMatch = trimmed.match(/\/(?:dp|gp\/product|gp\/aw\/d)\/([A-Z0-9]{10})/i);
+  if (urlMatch) return urlMatch[1].toUpperCase();
+  const bareMatch = trimmed.match(/^[A-Z0-9]{10}$/i);
+  return bareMatch ? trimmed.toUpperCase() : null;
 }
 
-// --- eBay側: /api/ebay-price（サーバーレス関数）経由でBrowse APIから相場を取得 ---
+async function fetchFromKeepa(asin) {
+  const res = await fetch(`/api/amazon-price?asin=${encodeURIComponent(asin)}`);
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error || `取得に失敗しました (${res.status})`);
+  }
+  return data;
+}
+
+// --- eBay側: /api/ebay-price（Worker）経由でBrowse APIから相場を取得 ---
 async function fetchFromEbay(keyword) {
   const res = await fetch(`/api/ebay-price?q=${encodeURIComponent(keyword)}`);
   const data = await res.json();
@@ -196,6 +208,39 @@ document.getElementById('btn-fetch-ebay').addEventListener('click', async () => 
       document.getElementById('in-price-usd').value = data.median;
       note.textContent = `eBay出品${data.count}件の中央値 $${data.median}（平均$${data.average} / $${data.min}〜$${data.max}）`;
     }
+  } catch (err) {
+    note.textContent = err.message;
+    note.classList.add('error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '自動取得';
+  }
+});
+
+document.getElementById('btn-fetch-amazon').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-fetch-amazon');
+  const note = document.getElementById('fetch-note-amazon');
+  const asin = extractAsin(document.getElementById('in-asin').value);
+
+  if (!asin) {
+    note.textContent = 'ASINを認識できませんでした（10桁の英数字、またはAmazon商品URLを入力してください）';
+    note.classList.add('error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '取得中…';
+  note.classList.remove('error');
+  note.textContent = '';
+
+  try {
+    const data = await fetchFromKeepa(asin);
+    document.getElementById('in-cost').value = data.priceJpy;
+    if (!document.getElementById('in-name').value.trim() && data.title) {
+      document.getElementById('in-name').value = data.title;
+    }
+    const sourceLabel = data.source === 'amazon' ? 'Amazon本体' : 'マーケットプレイス新品';
+    note.textContent = `Amazon.co.jp 現在価格 ¥${data.priceJpy.toLocaleString('ja-JP')}（${sourceLabel}）`;
   } catch (err) {
     note.textContent = err.message;
     note.classList.add('error');

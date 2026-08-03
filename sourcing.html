@@ -23,7 +23,9 @@
           でClient ID/Secretを取得し、CloudflareのWorker設定 → Settings → Variables and Secrets に
           <code>EBAY_CLIENT_ID</code> / <code>EBAY_CLIENT_SECRET</code>（Secret種別）を設定してデプロイすると有効になります。
           未設定の間は下の「自動取得」ボタンがエラーを表示するので、その場合は手動で入力してください。
-          Amazon（Keepa API）連携は未実装で、<code>sourcing.js</code> 内の <code>fetchFromKeepa()</code> は今後実装予定のスタブです。
+          Amazon仕入れ値も同様に <code>/api/amazon-price</code> 経由でKeepa APIから自動取得できます。
+          <a href="https://keepa.com/#!api" target="_blank" rel="noopener">keepa.com</a>
+          でAPIキーを取得し、<code>KEEPA_API_KEY</code>（Secret種別）を設定してください。
         </p>
       </div>
     </section>
@@ -69,6 +71,14 @@
     <section class="add-product">
       <h2>商品を追加</h2>
       <form id="product-form" class="product-form">
+        <label class="grow">
+          ASIN / Amazon URL
+          <span class="inline-input">
+            <input type="text" id="in-asin" placeholder="例）B0XXXXXXXX または https://www.amazon.co.jp/dp/B0XXXXXXXX" />
+            <button type="button" id="btn-fetch-amazon">自動取得</button>
+          </span>
+          <span class="fetch-note" id="fetch-note-amazon"></span>
+        </label>
         <label class="grow">
           商品名
           <input type="text" id="in-name" required placeholder="例）〇〇フィギュア" />
