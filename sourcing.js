@@ -166,6 +166,16 @@ async function fetchFromYahooShopping(keyword) {
   return data;
 }
 
+// --- 為替レート: /api/fx-rate（Worker）経由でFrankfurter（ECB）から取得。APIキー不要 ---
+async function fetchFxRate() {
+  const res = await fetch('/api/fx-rate');
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error || `取得に失敗しました (${res.status})`);
+  }
+  return data;
+}
+
 // 検索結果を個別選択できるよう一覧表示する（中央値だけに頼らず、実物を見て選べるようにする）
 function renderCandidates(containerId, items, currency, onSelect) {
   const container = document.getElementById(containerId);
@@ -319,6 +329,30 @@ document.getElementById('btn-add-tier').addEventListener('click', () => {
   tiers.push({ maxG: last ? last.maxG + 1000 : 1000, priceJpy: last ? last.priceJpy + 1000 : 1000 });
   saveShipTiers(tiers);
   renderShipTiers();
+});
+
+document.getElementById('btn-fetch-fx').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-fetch-fx');
+  const note = document.getElementById('fetch-note-fx');
+
+  btn.disabled = true;
+  btn.textContent = '取得中…';
+  note.classList.remove('error');
+  note.textContent = '';
+
+  try {
+    const data = await fetchFxRate();
+    document.getElementById('set-fx').value = data.rate;
+    saveSettings();
+    render();
+    note.textContent = `1 USD = ${data.rate} JPY（${data.date}時点、ECB参考レート）`;
+  } catch (err) {
+    note.textContent = err.message;
+    note.classList.add('error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '自動取得';
+  }
 });
 
 document.getElementById('btn-fetch-ebay').addEventListener('click', async () => {

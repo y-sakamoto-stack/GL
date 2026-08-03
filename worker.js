@@ -1,10 +1,11 @@
 // Cloudflare Worker entry point (deployed via `wrangler deploy`).
 // Serves the static site (index.html / sourcing.html / *.js / *.css) from
 // the assets binding, and handles /api/ebay-price, /api/amazon-price,
-// /api/rakuten-price and /api/yahoo-price itself so credentials never
-// reach the browser. Set EBAY_CLIENT_ID / EBAY_CLIENT_SECRET /
-// KEEPA_API_KEY / RAKUTEN_APP_ID / YAHOO_CLIENT_ID as Worker Variables
-// and Secrets (Settings → Variables and Secrets).
+// /api/rakuten-price, /api/yahoo-price and /api/fx-rate itself so
+// credentials never reach the browser. Set EBAY_CLIENT_ID /
+// EBAY_CLIENT_SECRET / KEEPA_API_KEY / RAKUTEN_APP_ID / YAHOO_CLIENT_ID
+// as Worker Variables and Secrets (Settings → Variables and Secrets).
+// /api/fx-rate needs no credentials (Frankfurter/ECB rates are public).
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
 
@@ -297,6 +298,25 @@ async function handleYahooPrice(request, env) {
   }
 }
 
+// Frankfurter（ECB公表レートの無料API）。APIキー・登録不要。
+// https://frankfurter.dev/
+async function handleFxRate() {
+  try {
+    const res = await fetch('https://api.frankfurter.dev/v2/rate/USD/JPY');
+    if (!res.ok) {
+      const text = await res.text();
+      return json({ error: `為替レートの取得に失敗しました (${res.status}): ${text}` }, res.status);
+    }
+    const data = await res.json();
+    if (typeof data.rate !== 'number') {
+      return json({ error: '為替レートのレスポンス形式が想定と異なります' }, 500);
+    }
+    return json({ rate: data.rate, date: data.date });
+  } catch (err) {
+    return json({ error: err.message }, 500);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -311,6 +331,9 @@ export default {
     }
     if (url.pathname === '/api/yahoo-price') {
       return handleYahooPrice(request, env);
+    }
+    if (url.pathname === '/api/fx-rate') {
+      return handleFxRate();
     }
     return env.ASSETS.fetch(request);
   },

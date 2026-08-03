@@ -34,6 +34,8 @@
           （<a href="https://developer.yahoo.co.jp/" target="_blank" rel="noopener">Yahoo!デベロッパーネットワーク</a>で<code>YAHOO_CLIENT_ID</code>を無料取得）から取得します。
           いずれもWorkerのSettings → Variables and Secrets（Secret種別）に設定してください。
           ※ヤフオク（Yahoo!オークション）は2020年に一般開発者向けWeb APIが提供終了しているため対応していません。メルカリも公式APIが無いため非対応です。
+          為替レートは <code>/api/fx-rate</code> 経由で<a href="https://frankfurter.dev/" target="_blank" rel="noopener">Frankfurter</a>
+          （ECB公表レート）から自動取得できます。こちらはAPIキー登録が不要で、設定不要ですぐ使えます。
           手数料はeBayカテゴリ選択、送料は重量帯別テーブルからそれぞれ自動計算されます（どちらもライブAPIではなく、公開されている標準料率・料金表を組み込んだものです。実際の値は変わるため定期的な確認・編集を推奨します）。
         </p>
       </div>
@@ -44,7 +46,11 @@
       <div class="settings-grid">
         <label>
           為替レート（USD→JPY）
-          <input type="number" id="set-fx" step="0.01" value="150" />
+          <span class="inline-input">
+            <input type="number" id="set-fx" step="0.01" value="150" />
+            <button type="button" id="btn-fetch-fx">自動取得</button>
+          </span>
+          <span class="fetch-note" id="fetch-note-fx"></span>
         </label>
         <label>
           決済手数料（%）
