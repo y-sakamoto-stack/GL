@@ -1,9 +1,10 @@
 // Cloudflare Worker entry point (deployed via `wrangler deploy`).
 // Serves the static site (index.html / sourcing.html / *.js / *.css) from
-// the assets binding, and handles /api/ebay-price and /api/amazon-price
-// itself so the eBay/Keepa credentials never reach the browser. Set
-// EBAY_CLIENT_ID / EBAY_CLIENT_SECRET / KEEPA_API_KEY as Worker
-// Variables and Secrets (Settings → Variables and Secrets).
+// the assets binding, and handles /api/ebay-price, /api/amazon-price,
+// /api/rakuten-price and /api/yahoo-price itself so credentials never
+// reach the browser. Set EBAY_CLIENT_ID / EBAY_CLIENT_SECRET /
+// KEEPA_API_KEY / RAKUTEN_APP_ID / YAHOO_CLIENT_ID as Worker Variables
+// and Secrets (Settings → Variables and Secrets).
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
 
@@ -166,6 +167,116 @@ async function handleAmazonPrice(request, env) {
   }
 }
 
+// 楽天商品検索API（IchibaItem/Search）。無料の楽天デベロッパー登録でApplication IDを取得できます。
+// https://webservice.rakuten.co.jp/documentation/ichiba-item-search
+async function handleRakutenPrice(request, env) {
+  const url = new URL(request.url);
+  const q = (url.searchParams.get('q') || '').trim();
+
+  if (!q) {
+    return json({ error: 'クエリパラメータ q（検索キーワード）が必要です' }, 400);
+  }
+
+  const appId = env.RAKUTEN_APP_ID;
+  if (!appId) {
+    return json({ error: 'RAKUTEN_APP_ID が設定されていません（WorkerのSettings → Variables and Secretsを確認してください）' }, 500);
+  }
+
+  try {
+    const params = new URLSearchParams({
+      applicationId: appId,
+      keyword: q,
+      format: 'json',
+      formatVersion: '2',
+      hits: '30',
+    });
+    const res = await fetch(`https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706?${params}`);
+
+    if (!res.ok) {
+      const text = await res.text();
+      return json({ error: `楽天API検索に失敗しました (${res.status}): ${text}` }, res.status);
+    }
+
+    const data = await res.json();
+    const items = (data.items || [])
+      .filter((item) => typeof item.itemPrice === 'number' && item.itemPrice > 0)
+      .map((item) => ({ title: item.itemName, price: item.itemPrice, url: item.itemUrl }));
+
+    if (items.length === 0) {
+      return json({ query: q, currency: 'JPY', count: 0, average: null, median: null, min: null, max: null, samples: [] });
+    }
+
+    const prices = items.map((i) => i.price);
+    const average = prices.reduce((a, b) => a + b, 0) / prices.length;
+
+    return json({
+      query: q,
+      currency: 'JPY',
+      count: items.length,
+      average: Math.round(average),
+      median: Math.round(median(prices)),
+      min: Math.min(...prices),
+      max: Math.max(...prices),
+      samples: items.slice(0, 5),
+      note: '楽天市場の現在の出品価格を集計した概算です。',
+    });
+  } catch (err) {
+    return json({ error: err.message }, 500);
+  }
+}
+
+// Yahoo!ショッピング商品検索API V3。無料のYahoo!デベロッパーネットワーク登録でClient IDを取得できます。
+// https://developer.yahoo.co.jp/webapi/shopping/shopping/v3/itemsearch.html
+async function handleYahooPrice(request, env) {
+  const url = new URL(request.url);
+  const q = (url.searchParams.get('q') || '').trim();
+
+  if (!q) {
+    return json({ error: 'クエリパラメータ q（検索キーワード）が必要です' }, 400);
+  }
+
+  const clientId = env.YAHOO_CLIENT_ID;
+  if (!clientId) {
+    return json({ error: 'YAHOO_CLIENT_ID が設定されていません（WorkerのSettings → Variables and Secretsを確認してください）' }, 500);
+  }
+
+  try {
+    const params = new URLSearchParams({ appid: clientId, query: q, results: '30' });
+    const res = await fetch(`https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch?${params}`);
+
+    if (!res.ok) {
+      const text = await res.text();
+      return json({ error: `Yahoo!ショッピング検索に失敗しました (${res.status}): ${text}` }, res.status);
+    }
+
+    const data = await res.json();
+    const items = (data.hits || [])
+      .filter((item) => typeof item.price === 'number' && item.price > 0)
+      .map((item) => ({ title: item.name, price: item.price, url: item.url }));
+
+    if (items.length === 0) {
+      return json({ query: q, currency: 'JPY', count: 0, average: null, median: null, min: null, max: null, samples: [] });
+    }
+
+    const prices = items.map((i) => i.price);
+    const average = prices.reduce((a, b) => a + b, 0) / prices.length;
+
+    return json({
+      query: q,
+      currency: 'JPY',
+      count: items.length,
+      average: Math.round(average),
+      median: Math.round(median(prices)),
+      min: Math.min(...prices),
+      max: Math.max(...prices),
+      samples: items.slice(0, 5),
+      note: 'Yahoo!ショッピングの現在の出品価格を集計した概算です。',
+    });
+  } catch (err) {
+    return json({ error: err.message }, 500);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -174,6 +285,12 @@ export default {
     }
     if (url.pathname === '/api/amazon-price') {
       return handleAmazonPrice(request, env);
+    }
+    if (url.pathname === '/api/rakuten-price') {
+      return handleRakutenPrice(request, env);
+    }
+    if (url.pathname === '/api/yahoo-price') {
+      return handleYahooPrice(request, env);
     }
     return env.ASSETS.fetch(request);
   },

@@ -23,9 +23,14 @@
           でClient ID/Secretを取得し、CloudflareのWorker設定 → Settings → Variables and Secrets に
           <code>EBAY_CLIENT_ID</code> / <code>EBAY_CLIENT_SECRET</code>（Secret種別）を設定してデプロイすると有効になります。
           未設定の間は下の「自動取得」ボタンがエラーを表示するので、その場合は手動で入力してください。
-          Amazon仕入れ値も同様に <code>/api/amazon-price</code> 経由でKeepa APIから自動取得できます。
-          <a href="https://keepa.com/#!api" target="_blank" rel="noopener">keepa.com</a>
-          でAPIキーを取得し、<code>KEEPA_API_KEY</code>（Secret種別）を設定してください。
+          仕入れ値は複数の仕入れ先から自動取得できます：Amazonは <code>/api/amazon-price</code> 経由でKeepa API
+          （<a href="https://keepa.com/#!api" target="_blank" rel="noopener">keepa.com</a>で<code>KEEPA_API_KEY</code>を取得）、
+          楽天市場は <code>/api/rakuten-price</code> 経由で楽天商品検索API
+          （<a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">楽天ウェブサービス</a>で<code>RAKUTEN_APP_ID</code>を無料取得）、
+          Yahoo!ショッピングは <code>/api/yahoo-price</code> 経由でYahoo!ショッピング商品検索API
+          （<a href="https://developer.yahoo.co.jp/" target="_blank" rel="noopener">Yahoo!デベロッパーネットワーク</a>で<code>YAHOO_CLIENT_ID</code>を無料取得）から取得します。
+          いずれもWorkerのSettings → Variables and Secrets（Secret種別）に設定してください。
+          ※ヤフオク（Yahoo!オークション）は2020年に一般開発者向けWeb APIが提供終了しているため対応していません。メルカリも公式APIが無いため非対応です。
           手数料はeBayカテゴリ選択、送料は重量帯別テーブルからそれぞれ自動計算されます（どちらもライブAPIではなく、公開されている標準料率・料金表を組み込んだものです。実際の値は変わるため定期的な確認・編集を推奨します）。
         </p>
       </div>
@@ -80,11 +85,27 @@
           <span class="fetch-note" id="fetch-note-amazon"></span>
         </label>
         <label class="grow">
+          楽天市場で検索（キーワード）
+          <span class="inline-input">
+            <input type="text" id="in-rakuten-kw" placeholder="例）〇〇フィギュア" />
+            <button type="button" id="btn-fetch-rakuten">自動取得</button>
+          </span>
+          <span class="fetch-note" id="fetch-note-rakuten"></span>
+        </label>
+        <label class="grow">
+          Yahoo!ショッピングで検索（キーワード）
+          <span class="inline-input">
+            <input type="text" id="in-yahoo-kw" placeholder="例）〇〇フィギュア" />
+            <button type="button" id="btn-fetch-yahoo">自動取得</button>
+          </span>
+          <span class="fetch-note" id="fetch-note-yahoo"></span>
+        </label>
+        <label class="grow">
           商品名
           <input type="text" id="in-name" required placeholder="例）〇〇フィギュア" />
         </label>
         <label>
-          Amazon仕入れ値（円）
+          仕入れ値（円）
           <input type="number" id="in-cost" step="1" min="0" required />
         </label>
         <label>

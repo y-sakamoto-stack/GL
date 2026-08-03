@@ -146,6 +146,26 @@ async function fetchFromEbay(keyword) {
   return data;
 }
 
+// --- 楽天市場側: /api/rakuten-price（Worker）経由で楽天商品検索APIから価格を取得 ---
+async function fetchFromRakuten(keyword) {
+  const res = await fetch(`/api/rakuten-price?q=${encodeURIComponent(keyword)}`);
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error || `取得に失敗しました (${res.status})`);
+  }
+  return data;
+}
+
+// --- Yahoo!ショッピング側: /api/yahoo-price（Worker）経由で商品検索APIから価格を取得 ---
+async function fetchFromYahooShopping(keyword) {
+  const res = await fetch(`/api/yahoo-price?q=${encodeURIComponent(keyword)}`);
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error || `取得に失敗しました (${res.status})`);
+  }
+  return data;
+}
+
 function estimateShipping(weightG, tiers) {
   const sorted = [...tiers].sort((a, b) => a.maxG - b.maxG);
   const hit = sorted.find((tier) => weightG <= tier.maxG);
@@ -347,6 +367,48 @@ document.getElementById('btn-fetch-amazon').addEventListener('click', async () =
     btn.textContent = '自動取得';
   }
 });
+
+function wireKeywordSourceFetch(btnId, noteId, inputId, fetcherFn, sourceLabel) {
+  document.getElementById(btnId).addEventListener('click', async () => {
+    const btn = document.getElementById(btnId);
+    const note = document.getElementById(noteId);
+    const keyword = document.getElementById(inputId).value.trim();
+
+    if (!keyword) {
+      note.textContent = 'キーワードを入力してください';
+      note.classList.add('error');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '取得中…';
+    note.classList.remove('error');
+    note.textContent = '';
+
+    try {
+      const data = await fetcherFn(keyword);
+      if (!data.count) {
+        note.textContent = `該当する商品が見つかりませんでした（検索語: ${keyword}）`;
+        note.classList.add('error');
+      } else {
+        document.getElementById('in-cost').value = data.median;
+        if (!document.getElementById('in-name').value.trim()) {
+          document.getElementById('in-name').value = keyword;
+        }
+        note.textContent = `${sourceLabel} ${data.count}件の中央値 ¥${data.median.toLocaleString('ja-JP')}（平均¥${data.average.toLocaleString('ja-JP')} / ¥${data.min.toLocaleString('ja-JP')}〜¥${data.max.toLocaleString('ja-JP')}）`;
+      }
+    } catch (err) {
+      note.textContent = err.message;
+      note.classList.add('error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '自動取得';
+    }
+  });
+}
+
+wireKeywordSourceFetch('btn-fetch-rakuten', 'fetch-note-rakuten', 'in-rakuten-kw', fetchFromRakuten, '楽天市場');
+wireKeywordSourceFetch('btn-fetch-yahoo', 'fetch-note-yahoo', 'in-yahoo-kw', fetchFromYahooShopping, 'Yahoo!ショッピング');
 
 // --- 候補一括スキャン: ASIN/URLのリストをKeepa→eBayの順に自動チェックし、利益率順に提案 ---
 const MAX_BATCH_ITEMS = 20;
