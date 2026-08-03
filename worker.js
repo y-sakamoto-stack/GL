@@ -169,7 +169,7 @@ async function handleAmazonPrice(request, env) {
 
 // 楽天商品検索API（IchibaItem/Search）。2026年5月の楽天API刷新後の新方式:
 // - エンドポイントが app.rakuten.co.jp/services/api → openapi.rakuten.co.jp/ichibams/api に変更
-// - applicationId（UUID形式）に加えてaccessKey（pk_で始まる）が必須に
+// - applicationId（UUID形式）、accessKey（pk_で始まる）、affiliateId の3つがすべて必須に
 // - 楽天アプリ設定の「アプリケーションURL（Allowed Website）」と一致するOrigin/Refererヘッダーが必須
 // https://webservice.rakuten.co.jp/documentation/ichiba-item-search
 async function handleRakutenPrice(request, env) {
@@ -182,8 +182,9 @@ async function handleRakutenPrice(request, env) {
 
   const appId = env.RAKUTEN_APP_ID;
   const accessKey = env.RAKUTEN_ACCESS_KEY;
-  if (!appId || !accessKey) {
-    return json({ error: 'RAKUTEN_APP_ID / RAKUTEN_ACCESS_KEY が設定されていません（WorkerのSettings → Variables and Secretsを確認してください）' }, 500);
+  const affiliateId = env.RAKUTEN_AFFILIATE_ID;
+  if (!appId || !accessKey || !affiliateId) {
+    return json({ error: 'RAKUTEN_APP_ID / RAKUTEN_ACCESS_KEY / RAKUTEN_AFFILIATE_ID が設定されていません（WorkerのSettings → Variables and Secretsを確認してください）' }, 500);
   }
 
   // 楽天アプリ設定の「アプリケーションURL」に登録したドメインと一致させる必要があります。
@@ -194,12 +195,13 @@ async function handleRakutenPrice(request, env) {
     const params = new URLSearchParams({
       applicationId: appId,
       accessKey,
+      affiliateId,
       keyword: q,
       format: 'json',
       formatVersion: '2',
       hits: '30',
     });
-    const res = await fetch(`https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601?${params}`, {
+    const res = await fetch(`https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401?${params}`, {
       headers: { Origin: origin, Referer: origin },
     });
 
