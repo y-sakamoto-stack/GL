@@ -106,7 +106,7 @@ async function handleEbayPrice(request, env) {
       median: Number(median(prices).toFixed(2)),
       min: Math.min(...prices),
       max: Math.max(...prices),
-      samples: items.slice(0, 5),
+      samples: items,
       note: '現在出品中（アクティブリスティング）の価格を集計した概算です。落札済み(Sold)相場とは異なる場合があります。',
     });
   } catch (err) {
@@ -237,7 +237,7 @@ async function handleRakutenPrice(request, env) {
       median: Math.round(median(prices)),
       min: Math.min(...prices),
       max: Math.max(...prices),
-      samples: items.slice(0, 5),
+      samples: items,
       note: '楽天市場の現在の出品価格を集計した概算です。',
     });
   } catch (err) {
@@ -289,7 +289,7 @@ async function handleYahooPrice(request, env) {
       median: Math.round(median(prices)),
       min: Math.min(...prices),
       max: Math.max(...prices),
-      samples: items.slice(0, 5),
+      samples: items,
       note: 'Yahoo!ショッピングの現在の出品価格を集計した概算です。',
     });
   } catch (err) {

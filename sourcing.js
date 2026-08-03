@@ -166,6 +166,26 @@ async function fetchFromYahooShopping(keyword) {
   return data;
 }
 
+// 検索結果を個別選択できるよう一覧表示する（中央値だけに頼らず、実物を見て選べるようにする）
+function renderCandidates(containerId, items, currency, onSelect) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  (items || []).forEach((item) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'candidate-row';
+    const priceLabel = currency === 'USD'
+      ? `$${item.price.toFixed(2)}`
+      : `¥${item.price.toLocaleString('ja-JP')}`;
+    row.innerHTML = `
+      <span class="candidate-title">${escapeHtml(item.title)}</span>
+      <span class="candidate-price">${priceLabel}</span>
+    `;
+    row.addEventListener('click', () => onSelect(item));
+    container.appendChild(row);
+  });
+}
+
 function estimateShipping(weightG, tiers) {
   const sorted = [...tiers].sort((a, b) => a.maxG - b.maxG);
   const hit = sorted.find((tier) => weightG <= tier.maxG);
@@ -316,6 +336,7 @@ document.getElementById('btn-fetch-ebay').addEventListener('click', async () => 
   btn.textContent = '取得中…';
   note.classList.remove('error');
   note.textContent = '';
+  renderCandidates('candidates-ebay', [], 'USD', () => {});
 
   try {
     const data = await fetchFromEbay(keyword);
@@ -323,8 +344,12 @@ document.getElementById('btn-fetch-ebay').addEventListener('click', async () => 
       note.textContent = `該当する出品が見つかりませんでした（検索語: ${keyword}）`;
       note.classList.add('error');
     } else {
-      document.getElementById('in-price-usd').value = data.median;
-      note.textContent = `eBay出品${data.count}件の中央値 $${data.median}（平均$${data.average} / $${data.min}〜$${data.max}）`;
+      note.textContent = `eBay出品${data.count}件がヒットしました（参考：中央値 $${data.median} / 平均$${data.average} / $${data.min}〜$${data.max}）。下の一覧から実際に使う商品を選んでください。`;
+      renderCandidates('candidates-ebay', data.samples, 'USD', (item) => {
+        document.getElementById('in-price-usd').value = item.price;
+        note.textContent = `選択: ${item.title} — $${item.price.toFixed(2)}`;
+        renderCandidates('candidates-ebay', [], 'USD', () => {});
+      });
     }
   } catch (err) {
     note.textContent = err.message;
@@ -368,7 +393,7 @@ document.getElementById('btn-fetch-amazon').addEventListener('click', async () =
   }
 });
 
-function wireKeywordSourceFetch(btnId, noteId, inputId, fetcherFn, sourceLabel) {
+function wireKeywordSourceFetch(btnId, noteId, inputId, candidatesId, fetcherFn, sourceLabel) {
   document.getElementById(btnId).addEventListener('click', async () => {
     const btn = document.getElementById(btnId);
     const note = document.getElementById(noteId);
@@ -384,6 +409,7 @@ function wireKeywordSourceFetch(btnId, noteId, inputId, fetcherFn, sourceLabel) 
     btn.textContent = '取得中…';
     note.classList.remove('error');
     note.textContent = '';
+    renderCandidates(candidatesId, [], 'JPY', () => {});
 
     try {
       const data = await fetcherFn(keyword);
@@ -391,11 +417,15 @@ function wireKeywordSourceFetch(btnId, noteId, inputId, fetcherFn, sourceLabel) 
         note.textContent = `該当する商品が見つかりませんでした（検索語: ${keyword}）`;
         note.classList.add('error');
       } else {
-        document.getElementById('in-cost').value = data.median;
-        if (!document.getElementById('in-name').value.trim()) {
-          document.getElementById('in-name').value = keyword;
-        }
-        note.textContent = `${sourceLabel} ${data.count}件の中央値 ¥${data.median.toLocaleString('ja-JP')}（平均¥${data.average.toLocaleString('ja-JP')} / ¥${data.min.toLocaleString('ja-JP')}〜¥${data.max.toLocaleString('ja-JP')}）`;
+        note.textContent = `${sourceLabel} ${data.count}件がヒットしました（参考：中央値 ¥${data.median.toLocaleString('ja-JP')} / 平均¥${data.average.toLocaleString('ja-JP')} / ¥${data.min.toLocaleString('ja-JP')}〜¥${data.max.toLocaleString('ja-JP')}）。下の一覧から実際に使う商品を選んでください。`;
+        renderCandidates(candidatesId, data.samples, 'JPY', (item) => {
+          document.getElementById('in-cost').value = item.price;
+          if (!document.getElementById('in-name').value.trim()) {
+            document.getElementById('in-name').value = item.title;
+          }
+          note.textContent = `選択: ${item.title} — ¥${item.price.toLocaleString('ja-JP')}`;
+          renderCandidates(candidatesId, [], 'JPY', () => {});
+        });
       }
     } catch (err) {
       note.textContent = err.message;
@@ -407,8 +437,8 @@ function wireKeywordSourceFetch(btnId, noteId, inputId, fetcherFn, sourceLabel) 
   });
 }
 
-wireKeywordSourceFetch('btn-fetch-rakuten', 'fetch-note-rakuten', 'in-rakuten-kw', fetchFromRakuten, '楽天市場');
-wireKeywordSourceFetch('btn-fetch-yahoo', 'fetch-note-yahoo', 'in-yahoo-kw', fetchFromYahooShopping, 'Yahoo!ショッピング');
+wireKeywordSourceFetch('btn-fetch-rakuten', 'fetch-note-rakuten', 'in-rakuten-kw', 'candidates-rakuten', fetchFromRakuten, '楽天市場');
+wireKeywordSourceFetch('btn-fetch-yahoo', 'fetch-note-yahoo', 'in-yahoo-kw', 'candidates-yahoo', fetchFromYahooShopping, 'Yahoo!ショッピング');
 
 // --- 候補一括スキャン: ASIN/URLのリストをKeepa→eBayの順に自動チェックし、利益率順に提案 ---
 const MAX_BATCH_ITEMS = 20;

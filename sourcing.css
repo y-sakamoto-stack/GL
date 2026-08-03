@@ -179,6 +179,57 @@ h2 {
   background: #1d6a96;
 }
 
+.candidates {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.candidates:empty {
+  display: none;
+  border: none;
+}
+
+.candidate-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  background: #0f3460;
+  border: none;
+  border-bottom: 1px solid #1a1a2e;
+  color: #eaeaea;
+  font-size: 0.78rem;
+  text-align: left;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.candidate-row:last-child {
+  border-bottom: none;
+}
+
+.candidate-row:hover {
+  background: #1d3a63;
+}
+
+.candidate-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidate-price {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: #a8dadc;
+}
+
 .batch-controls {
   display: flex;
   gap: 16px;
