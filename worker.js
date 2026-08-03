@@ -188,8 +188,10 @@ async function handleRakutenPrice(request, env) {
   }
 
   // 楽天アプリ設定の「アプリケーションURL」に登録したドメインと一致させる必要があります。
-  // 別のドメインを登録した場合は env.RAKUTEN_ORIGIN で上書きしてください。
-  const origin = env.RAKUTEN_ORIGIN || 'https://github.com/y-sakamoto-stack/GL';
+  // 別のドメインを登録した場合は env.RAKUTEN_REFERER で上書きしてください。
+  // Origin ヘッダーは仕様上スキーム+ホストのみ（パスを含まない）、Referer はフルURLで送る。
+  const referer = env.RAKUTEN_REFERER || 'https://ebay-sourcing-tool.ys-god-breath.workers.dev/';
+  const origin = new URL(referer).origin;
 
   try {
     const params = new URLSearchParams({
@@ -202,7 +204,7 @@ async function handleRakutenPrice(request, env) {
       hits: '30',
     });
     const res = await fetch(`https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401?${params}`, {
-      headers: { Origin: origin, Referer: origin },
+      headers: { Origin: origin, Referer: referer },
     });
 
     if (!res.ok) {

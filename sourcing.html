@@ -29,7 +29,7 @@
           （<a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">楽天ウェブサービス</a>で発行される
           <code>RAKUTEN_APP_ID</code>＝アプリケーションID(UUID形式)、<code>RAKUTEN_ACCESS_KEY</code>＝アクセスキー(pk_〜)、
           <code>RAKUTEN_AFFILIATE_ID</code>＝アフィリエイトIDの<strong>3つすべて</strong>を設定。2026年の楽天API刷新後は登録した
-          「アプリケーションURL」とOrigin/Refererの一致チェックもあるため、登録URLが既定と異なる場合は<code>RAKUTEN_ORIGIN</code>も設定してください）、
+          「アプリケーションURL」とOrigin/Refererの一致チェックもあるため、登録URLがこのWorkerの本番URLと異なる場合は<code>RAKUTEN_REFERER</code>も設定してください）、
           Yahoo!ショッピングは <code>/api/yahoo-price</code> 経由でYahoo!ショッピング商品検索API
           （<a href="https://developer.yahoo.co.jp/" target="_blank" rel="noopener">Yahoo!デベロッパーネットワーク</a>で<code>YAHOO_CLIENT_ID</code>を無料取得）から取得します。
           いずれもWorkerのSettings → Variables and Secrets（Secret種別）に設定してください。
