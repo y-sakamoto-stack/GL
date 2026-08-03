@@ -190,7 +190,7 @@ async function handleRakutenPrice(request, env) {
   // 楽天アプリ設定の「アプリケーションURL」に登録したドメインと一致させる必要があります。
   // 別のドメインを登録した場合は env.RAKUTEN_REFERER で上書きしてください。
   // Origin ヘッダーは仕様上スキーム+ホストのみ（パスを含まない）、Referer はフルURLで送る。
-  const referer = env.RAKUTEN_REFERER || 'https://ebay-sourcing-tool.ys-god-breath.workers.dev/';
+  const referer = env.RAKUTEN_REFERER || 'https://ebay-sourcing-tool.ys-god-breath.workers.dev';
   const origin = new URL(referer).origin;
 
   try {
