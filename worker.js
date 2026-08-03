@@ -213,7 +213,12 @@ async function handleRakutenPrice(request, env) {
     }
 
     const data = await res.json();
-    const items = (data.items || [])
+    // formatVersion=2 は { items: [{itemName, itemPrice, ...}] }（フラット）、
+    // formatVersion=1 は { Items: [{ Item: {itemName, itemPrice, ...} }] }（ネスト）。
+    // 新APIでどちらが返るか不確実なため両方に対応する。
+    const rawList = data.items || data.Items || [];
+    const items = rawList
+      .map((entry) => entry.Item || entry.item || entry)
       .filter((item) => typeof item.itemPrice === 'number' && item.itemPrice > 0)
       .map((item) => ({ title: item.itemName, price: item.itemPrice, url: item.itemUrl }));
 
