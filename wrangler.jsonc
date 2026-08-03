@@ -1,6 +1,6 @@
 {
   "name": "ebay-sourcing-tool",
-  "compatibility_date": "2025-01-01",
+  "compatibility_date": "2026-08-03",
   "main": "worker.js",
   "assets": {
     "directory": "./",
