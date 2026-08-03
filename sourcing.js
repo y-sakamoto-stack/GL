@@ -615,6 +615,122 @@ async function runBatchScan() {
 
 document.getElementById('btn-run-scan').addEventListener('click', runBatchScan);
 
+// --- AIにおまかせ発掘: Claude APIにキーワードを自由発想させ、楽天/eBayの価格を自動取得して利益率順に提案 ---
+let aiDiscoverResults = [];
+
+async function fetchAiDiscover(count) {
+  const res = await fetch(`/api/ai-discover?count=${encodeURIComponent(count)}`);
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error || `取得に失敗しました (${res.status})`);
+  }
+  return data;
+}
+
+function renderAiDiscoverResults() {
+  const tbody = document.getElementById('ai-discover-body');
+  tbody.innerHTML = '';
+
+  const sorted = [...aiDiscoverResults].sort((a, b) => {
+    if (!a.ok && !b.ok) return 0;
+    if (!a.ok) return 1;
+    if (!b.ok) return -1;
+    return b.result.marginPct - a.result.marginPct;
+  });
+
+  sorted.forEach((entry, idx) => {
+    const tr = document.createElement('tr');
+    if (!entry.ok) {
+      tr.innerHTML = `<td colspan="8" class="error">${escapeHtml(entry.keyword)}: ${escapeHtml(entry.error)}</td><td></td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+    const { product, result, reason } = entry;
+    const categoryLabel = (EBAY_FEE_CATEGORIES[product.category] || EBAY_FEE_CATEGORIES.standard).label;
+    tr.innerHTML = `
+      <td>${escapeHtml(product.name)}</td>
+      <td>${escapeHtml(reason)}</td>
+      <td>${escapeHtml(categoryLabel)}</td>
+      <td>${formatJpy(product.cost)}</td>
+      <td>${product.priceUsd.toFixed(2)}</td>
+      <td>${result.marginPct.toFixed(1)}%</td>
+      <td>${result.roiPct.toFixed(1)}%</td>
+      <td><span class="verdict ${verdictClass(result.verdict)}">${result.verdict}</span></td>
+      <td><button type="button" class="add-btn small-btn" data-idx="${idx}">追加</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[data-idx]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const entry = sorted[Number(btn.getAttribute('data-idx'))];
+      if (!entry || !entry.ok) return;
+      const products = loadProducts();
+      products.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        name: entry.product.name,
+        cost: entry.product.cost,
+        category: entry.product.category,
+        priceUsd: entry.product.priceUsd,
+        weight: entry.product.weight,
+        shipping: entry.product.shipping,
+      });
+      saveProducts(products);
+      render();
+      btn.textContent = '追加済み';
+      btn.disabled = true;
+    });
+  });
+}
+
+async function runAiDiscover() {
+  const btn = document.getElementById('btn-run-ai-discover');
+  const progress = document.getElementById('ai-discover-progress');
+  const count = Number(document.getElementById('ai-count').value) || 10;
+  const weight = Number(document.getElementById('ai-weight').value) || 0;
+  const settings = getSettings();
+  const tiers = loadShipTiers();
+
+  btn.disabled = true;
+  btn.textContent = 'AIが検索中…';
+  progress.classList.remove('error');
+  progress.textContent = 'Claudeがキーワードを発想し、楽天市場・eBayの価格を取得しています…';
+  aiDiscoverResults = [];
+  renderAiDiscoverResults();
+
+  try {
+    const data = await fetchAiDiscover(count);
+    aiDiscoverResults = (data.candidates || []).map((c) => {
+      if (!c.rakuten || !c.rakuten.count) {
+        return { keyword: c.keyword, ok: false, error: c.rakutenError || `楽天市場で該当する商品が見つかりませんでした（検索語: ${c.keyword}）` };
+      }
+      if (!c.ebay || !c.ebay.count) {
+        return { keyword: c.keyword, ok: false, error: c.ebayError || `eBayで該当する出品が見つかりませんでした（検索語: ${c.keyword}）` };
+      }
+      const product = {
+        name: c.keyword,
+        cost: c.rakuten.median,
+        category: c.category,
+        priceUsd: c.ebay.median,
+        weight,
+        shipping: estimateShipping(weight, tiers),
+      };
+      const result = evaluateProduct(product, settings);
+      return { keyword: c.keyword, ok: true, reason: c.reason, product, result };
+    });
+    progress.textContent = `完了（${aiDiscoverResults.length}件のキーワードをAIが提案）`;
+  } catch (err) {
+    progress.textContent = err.message;
+    progress.classList.add('error');
+  } finally {
+    renderAiDiscoverResults();
+    btn.disabled = false;
+    btn.textContent = 'AIに探してもらう';
+  }
+}
+
+document.getElementById('btn-run-ai-discover').addEventListener('click', runAiDiscover);
+
 document.getElementById('filter-recommend-only').addEventListener('change', render);
 
 settingIds.forEach((id) => {

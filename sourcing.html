@@ -37,6 +37,11 @@
           為替レートは <code>/api/fx-rate</code> 経由で<a href="https://frankfurter.dev/" target="_blank" rel="noopener">Frankfurter</a>
           （ECB公表レート）から自動取得できます。こちらはAPIキー登録が不要で、設定不要ですぐ使えます。
           手数料はeBayカテゴリ選択、送料は重量帯別テーブルからそれぞれ自動計算されます（どちらもライブAPIではなく、公開されている標準料率・料金表を組み込んだものです。実際の値は変わるため定期的な確認・編集を推奨します）。
+          「AIにおまかせ発掘」機能は <code>/api/ai-discover</code> 経由でClaude（Anthropic API）にeBay転売向けの検索キーワードを自由発想させ、
+          楽天市場・eBayの価格を自動取得して利益率順に提案します。
+          <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>
+          で取得した<code>ANTHROPIC_API_KEY</code>をWorkerのSettings → Variables and Secretsに設定すると有効になります。
+          Anthropic APIは呼び出しごとの従量課金（コスト発生あり）のため、未設定の間は使用されません。
         </p>
       </div>
     </section>
@@ -185,6 +190,48 @@
             </tr>
           </thead>
           <tbody id="batch-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="ai-discover">
+      <h2>AIにおまかせ発掘</h2>
+      <p class="note">
+        Claude（Anthropic API）が自由な発想でeBay転売に向いた検索キーワードを考え、楽天市場の仕入れ値とeBayの想定売値を自動取得して利益率順に一覧表示します。
+        利用には <code>ANTHROPIC_API_KEY</code> をWorkerのSettings → Variables and Secretsに設定してください（
+        <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>
+        で取得。呼び出しごとに従量課金が発生します。単純なキーワード発想のみのため1回あたりごく少額です）。
+      </p>
+      <div class="batch-controls">
+        <div class="batch-side">
+          <label>
+            提案数
+            <input type="number" id="ai-count" step="1" min="1" max="20" value="10" />
+          </label>
+          <label>
+            想定重量（g・一括適用）
+            <input type="number" id="ai-weight" step="1" min="0" value="500" />
+          </label>
+          <button type="button" id="btn-run-ai-discover" class="add-btn">AIに探してもらう</button>
+        </div>
+      </div>
+      <p class="fetch-note" id="ai-discover-progress"></p>
+      <div class="table-scroll">
+        <table id="ai-discover-table">
+          <thead>
+            <tr>
+              <th>キーワード</th>
+              <th>AIの理由</th>
+              <th>カテゴリ</th>
+              <th>仕入れ値(円)</th>
+              <th>eBay売値(USD)</th>
+              <th>利益率</th>
+              <th>ROI</th>
+              <th>判定</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ai-discover-body"></tbody>
         </table>
       </div>
     </section>
