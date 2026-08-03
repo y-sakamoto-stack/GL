@@ -1,6 +1,8 @@
-// Cloudflare Pages Function: proxies eBay Browse API so the Client Secret
-// never reaches the browser. Requires env vars EBAY_CLIENT_ID / EBAY_CLIENT_SECRET
-// (Cloudflare Pages → Settings → Environment variables).
+// Cloudflare Worker entry point (deployed via `wrangler deploy`).
+// Serves the static site (index.html / sourcing.html / *.js / *.css) from
+// the assets binding, and handles /api/ebay-price itself so the eBay Client
+// Secret never reaches the browser. Set EBAY_CLIENT_ID / EBAY_CLIENT_SECRET
+// as Worker Variables and Secrets (Settings → Variables and Secrets).
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
 
@@ -11,7 +13,7 @@ async function getAppToken(env) {
   const clientId = env.EBAY_CLIENT_ID;
   const clientSecret = env.EBAY_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
-    throw new Error('EBAY_CLIENT_ID / EBAY_CLIENT_SECRET が設定されていません（Cloudflare Pagesの環境変数を確認してください）');
+    throw new Error('EBAY_CLIENT_ID / EBAY_CLIENT_SECRET が設定されていません（WorkerのSettings → Variables and Secretsを確認してください）');
   }
 
   const basicAuth = btoa(`${clientId}:${clientSecret}`);
@@ -51,8 +53,7 @@ function json(data, status = 200) {
   });
 }
 
-export async function onRequestGet(context) {
-  const { request, env } = context;
+async function handleEbayPrice(request, env) {
   const url = new URL(request.url);
   const q = (url.searchParams.get('q') || '').trim();
 
@@ -110,3 +111,13 @@ export async function onRequestGet(context) {
     return json({ error: err.message }, 500);
   }
 }
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname === '/api/ebay-price') {
+      return handleEbayPrice(request, env);
+    }
+    return env.ASSETS.fetch(request);
+  },
+};

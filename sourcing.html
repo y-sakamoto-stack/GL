@@ -18,10 +18,10 @@
       <div class="api-status-row">
         <span class="badge badge-off">API未設定</span>
         <p>
-          eBay想定売値は <code>/api/ebay-price</code>（Cloudflare Pages Functions）経由でeBay Browse APIから自動取得できます。
+          eBay想定売値は <code>/api/ebay-price</code>（Cloudflare Worker内の<code>worker.js</code>）経由でeBay Browse APIから自動取得できます。
           <a href="https://developer.ebay.com/my/keys" target="_blank" rel="noopener">developer.ebay.com</a>
-          でClient ID/Secretを取得し、Cloudflare Pagesのプロジェクト設定 → Settings → Environment variables に
-          <code>EBAY_CLIENT_ID</code> / <code>EBAY_CLIENT_SECRET</code> を設定してデプロイすると有効になります。
+          でClient ID/Secretを取得し、CloudflareのWorker設定 → Settings → Variables and Secrets に
+          <code>EBAY_CLIENT_ID</code> / <code>EBAY_CLIENT_SECRET</code>（Secret種別）を設定してデプロイすると有効になります。
           未設定の間は下の「自動取得」ボタンがエラーを表示するので、その場合は手動で入力してください。
           Amazon（Keepa API）連携は未実装で、<code>sourcing.js</code> 内の <code>fetchFromKeepa()</code> は今後実装予定のスタブです。
         </p>
