@@ -348,6 +348,147 @@ document.getElementById('btn-fetch-amazon').addEventListener('click', async () =
   }
 });
 
+// --- 候補一括スキャン: ASIN/URLのリストをKeepa→eBayの順に自動チェックし、利益率順に提案 ---
+const MAX_BATCH_ITEMS = 20;
+let scanResults = [];
+
+function parseAsinList(text) {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const asins = [];
+  lines.forEach((line) => {
+    const asin = extractAsin(line);
+    if (asin && !asins.includes(asin)) asins.push(asin);
+  });
+  return asins.slice(0, MAX_BATCH_ITEMS);
+}
+
+function populateBatchCategorySelect() {
+  const select = document.getElementById('batch-category');
+  select.innerHTML = '';
+  Object.entries(EBAY_FEE_CATEGORIES).forEach(([key, cat]) => {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = `${cat.label}（${cat.rate}%）`;
+    select.appendChild(option);
+  });
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function scanOneAsin(asin, category, weight, settings, tiers) {
+  const amazon = await fetchFromKeepa(asin);
+  const ebay = await fetchFromEbay(amazon.title);
+  if (!ebay.count) {
+    throw new Error(`eBayで該当する出品が見つかりませんでした（検索語: ${amazon.title}）`);
+  }
+  const product = {
+    name: amazon.title,
+    cost: amazon.priceJpy,
+    category,
+    priceUsd: ebay.median,
+    weight,
+    shipping: estimateShipping(weight, tiers),
+  };
+  const result = evaluateProduct(product, settings);
+  return { product, result };
+}
+
+function renderScanResults() {
+  const tbody = document.getElementById('batch-body');
+  tbody.innerHTML = '';
+
+  const sorted = [...scanResults].sort((a, b) => {
+    if (!a.ok && !b.ok) return 0;
+    if (!a.ok) return 1;
+    if (!b.ok) return -1;
+    return b.result.marginPct - a.result.marginPct;
+  });
+
+  sorted.forEach((entry, idx) => {
+    const tr = document.createElement('tr');
+    if (!entry.ok) {
+      tr.innerHTML = `<td colspan="7" class="error">${escapeHtml(entry.asin)}: ${escapeHtml(entry.error)}</td><td></td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+    const { product, result } = entry;
+    tr.innerHTML = `
+      <td>${escapeHtml(product.name)}</td>
+      <td>${escapeHtml(entry.asin)}</td>
+      <td>${formatJpy(product.cost)}</td>
+      <td>${product.priceUsd.toFixed(2)}</td>
+      <td>${result.marginPct.toFixed(1)}%</td>
+      <td>${result.roiPct.toFixed(1)}%</td>
+      <td><span class="verdict ${verdictClass(result.verdict)}">${result.verdict}</span></td>
+      <td><button type="button" class="add-btn small-btn" data-idx="${idx}">追加</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[data-idx]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const entry = sorted[Number(btn.getAttribute('data-idx'))];
+      if (!entry || !entry.ok) return;
+      const products = loadProducts();
+      products.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        name: entry.product.name,
+        cost: entry.product.cost,
+        category: entry.product.category,
+        priceUsd: entry.product.priceUsd,
+        weight: entry.product.weight,
+        shipping: entry.product.shipping,
+      });
+      saveProducts(products);
+      render();
+      btn.textContent = '追加済み';
+      btn.disabled = true;
+    });
+  });
+}
+
+async function runBatchScan() {
+  const btn = document.getElementById('btn-run-scan');
+  const progress = document.getElementById('batch-progress');
+  const asins = parseAsinList(document.getElementById('batch-input').value);
+
+  if (asins.length === 0) {
+    progress.textContent = 'ASINまたはAmazon URLを1行に1つ以上入力してください';
+    progress.classList.add('error');
+    return;
+  }
+
+  const category = document.getElementById('batch-category').value;
+  const weight = Number(document.getElementById('batch-weight').value) || 0;
+  const settings = getSettings();
+  const tiers = loadShipTiers();
+
+  btn.disabled = true;
+  progress.classList.remove('error');
+  scanResults = [];
+  renderScanResults();
+
+  for (let i = 0; i < asins.length; i++) {
+    const asin = asins[i];
+    progress.textContent = `スキャン中… (${i + 1}/${asins.length}) ${asin}`;
+    try {
+      const scanned = await scanOneAsin(asin, category, weight, settings, tiers);
+      scanResults.push({ asin, ok: true, ...scanned });
+    } catch (err) {
+      scanResults.push({ asin, ok: false, error: err.message });
+    }
+    renderScanResults();
+    if (i < asins.length - 1) await sleep(300);
+  }
+
+  progress.textContent = `スキャン完了（${asins.length}件）`;
+  btn.disabled = false;
+}
+
+document.getElementById('btn-run-scan').addEventListener('click', runBatchScan);
+
 document.getElementById('filter-recommend-only').addEventListener('change', render);
 
 settingIds.forEach((id) => {
@@ -358,6 +499,7 @@ settingIds.forEach((id) => {
 });
 
 populateCategorySelect();
+populateBatchCategorySelect();
 renderShipTiers();
 loadSettings();
 render();

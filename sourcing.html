@@ -114,6 +114,48 @@
       </form>
     </section>
 
+    <section class="batch-scan">
+      <h2>候補を一括スキャン</h2>
+      <p class="note">
+        ASINまたはAmazon商品URLを1行に1つずつ貼り付けてください（最大20件）。各商品のAmazon仕入れ値とeBay想定売値（商品名で検索した中央値）を自動取得し、利益率が高い順に一覧表示します。
+      </p>
+      <div class="batch-controls">
+        <label class="batch-textarea-label">
+          ASIN / Amazon URL リスト（1行に1つ）
+          <textarea id="batch-input" rows="6" placeholder="B0XXXXXXXX&#10;https://www.amazon.co.jp/dp/B0YYYYYYYY"></textarea>
+        </label>
+        <div class="batch-side">
+          <label>
+            eBayカテゴリ（一括適用）
+            <select id="batch-category"></select>
+          </label>
+          <label>
+            想定重量（g・一括適用）
+            <input type="number" id="batch-weight" step="1" min="0" value="500" />
+          </label>
+          <button type="button" id="btn-run-scan" class="add-btn">スキャン開始</button>
+        </div>
+      </div>
+      <p class="fetch-note" id="batch-progress"></p>
+      <div class="table-scroll">
+        <table id="batch-table">
+          <thead>
+            <tr>
+              <th>商品名</th>
+              <th>ASIN</th>
+              <th>仕入れ値(円)</th>
+              <th>eBay売値(USD)</th>
+              <th>利益率</th>
+              <th>ROI</th>
+              <th>判定</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="batch-body"></tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="results">
       <div class="results-header">
         <h2>判定結果</h2>

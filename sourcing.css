@@ -179,6 +179,72 @@ h2 {
   background: #1d6a96;
 }
 
+.batch-controls {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.batch-textarea-label {
+  flex: 2;
+  min-width: 260px;
+}
+
+.batch-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #a8dadc;
+}
+
+.batch-controls textarea {
+  background: #0f3460;
+  border: 1px solid #457b9d;
+  border-radius: 8px;
+  color: #eaeaea;
+  font-size: 0.85rem;
+  padding: 10px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.batch-controls textarea:focus {
+  border-color: #a8dadc;
+}
+
+.batch-controls select,
+.batch-controls input {
+  background: #0f3460;
+  border: 1px solid #457b9d;
+  border-radius: 8px;
+  color: #eaeaea;
+  font-size: 0.9rem;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.batch-side {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.small-btn {
+  padding: 4px 10px !important;
+  font-size: 0.75rem !important;
+  width: auto;
+}
+
+td.error {
+  text-align: left;
+  color: #e63946;
+}
+
 .settings-grid label,
 .product-form label {
   display: flex;
