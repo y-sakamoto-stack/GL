@@ -26,7 +26,10 @@
           仕入れ値は複数の仕入れ先から自動取得できます：Amazonは <code>/api/amazon-price</code> 経由でKeepa API
           （<a href="https://keepa.com/#!api" target="_blank" rel="noopener">keepa.com</a>で<code>KEEPA_API_KEY</code>を取得）、
           楽天市場は <code>/api/rakuten-price</code> 経由で楽天商品検索API
-          （<a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">楽天ウェブサービス</a>で<code>RAKUTEN_APP_ID</code>を無料取得）、
+          （<a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">楽天ウェブサービス</a>で発行される
+          <code>RAKUTEN_APP_ID</code>＝アプリケーションID(UUID形式)と<code>RAKUTEN_ACCESS_KEY</code>＝アクセスキー(pk_〜)の
+          <strong>両方</strong>を設定。2026年の楽天API刷新後は登録した「アプリケーションURL」とOrigin/Refererの一致チェックもあるため、
+          登録URLが既定と異なる場合は<code>RAKUTEN_ORIGIN</code>も設定してください）、
           Yahoo!ショッピングは <code>/api/yahoo-price</code> 経由でYahoo!ショッピング商品検索API
           （<a href="https://developer.yahoo.co.jp/" target="_blank" rel="noopener">Yahoo!デベロッパーネットワーク</a>で<code>YAHOO_CLIENT_ID</code>を無料取得）から取得します。
           いずれもWorkerのSettings → Variables and Secrets（Secret種別）に設定してください。
