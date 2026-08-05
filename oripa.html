@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>オリパ期待値計算ツール</title>
+  <link rel="stylesheet" href="oripa-style.css" />
+</head>
+<body>
+  <div class="container">
+    <nav class="site-nav">
+      <a href="index.html">← アラーム</a>
+      <span>オリパ期待値計算ツール</span>
+    </nav>
+
+    <h1>オリパ期待値計算</h1>
+    <p class="desc">景品の本数と価値、価格を入力すると、1口あたりの期待値・還元率を自動計算します。</p>
+
+    <div class="field-row">
+      <label for="price">1口の価格（円）</label>
+      <input type="number" id="price" min="0" inputmode="numeric" placeholder="例: 1000" />
+    </div>
+
+    <div class="field-row">
+      <label for="total-slots">総口数（未入力なら景品本数の合計）</label>
+      <input type="number" id="total-slots" min="0" inputmode="numeric" placeholder="例: 100" />
+    </div>
+
+    <h2>景品一覧</h2>
+    <div class="table-wrap">
+      <table id="prize-table">
+        <thead>
+          <tr>
+            <th class="col-name">景品名</th>
+            <th class="col-count">本数</th>
+            <th class="col-value">価値（円/本）</th>
+            <th class="col-del"></th>
+          </tr>
+        </thead>
+        <tbody id="prize-body"></tbody>
+      </table>
+    </div>
+    <button id="add-row-btn" type="button" class="add-btn">＋ 景品を追加</button>
+
+    <div class="result-box" id="result-box">
+      <div class="result-row">
+        <span class="result-label">景品本数の合計</span>
+        <span class="result-value" id="out-prize-count">-</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">はずれ本数（自動計算）</span>
+        <span class="result-value" id="out-miss-count">-</span>
+      </div>
+      <div class="result-row highlight">
+        <span class="result-label">期待値（1口あたり）</span>
+        <span class="result-value" id="out-ev">-</span>
+      </div>
+      <div class="result-row highlight">
+        <span class="result-label">還元率</span>
+        <span class="result-value" id="out-rate">-</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">期待収支（1口あたり）</span>
+        <span class="result-value" id="out-profit">-</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">全口購入時の収支（確定値）</span>
+        <span class="result-value" id="out-all-profit">-</span>
+      </div>
+      <p class="warning hidden" id="warning-msg"></p>
+    </div>
+
+    <div class="n-box">
+      <label for="n-count">購入口数を指定して期待収支を見る</label>
+      <div class="n-row">
+        <input type="number" id="n-count" min="0" inputmode="numeric" placeholder="例: 10" />
+        <span class="n-result" id="n-result">-</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="oripa.js"></script>
+</body>
+</html>

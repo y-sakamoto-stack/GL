@@ -110,6 +110,20 @@ h1 {
   display: none !important;
 }
 
+.site-link {
+  font-size: 0.8rem;
+  margin-bottom: 20px;
+}
+
+.site-link a {
+  color: #a8dadc;
+  text-decoration: none;
+}
+
+.site-link a:hover {
+  text-decoration: underline;
+}
+
 /* Modal */
 .modal {
   position: fixed;
